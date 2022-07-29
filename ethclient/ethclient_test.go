@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 	"reflect"
 	"testing"
@@ -341,6 +342,53 @@ func generateTestChain() []*types.Block {
 	blocks, _ := core.GenerateChain(genesis.Config, gblock, engine, db, testBlockNum, generate)
 	blocks = append([]*types.Block{gblock}, blocks...)
 	return blocks
+}
+
+func testCallContractWithOverride(t *testing.T, client *rpc.Client) {
+	ec := NewClient(client)
+
+	// EstimateGas
+	msg := ethereum.CallMsg{
+		From:  testAddr,
+		To:    &common.Address{},
+		Gas:   21000,
+		Value: big.NewInt(1),
+	}
+	fmt.Println("[+] debug: start PendingCallContractAndModify")
+	if _, err := ec.PendingCallContractWithModify(context.Background(), msg, map[common.Address]ethapi.OverrideAccount{
+		common.HexToAddress("0xe9ae3261a475a27bb1028f140bc2a7c843318afd"): {
+			Nonce:     nil,
+			Code:      nil,
+			Balance:   nil,
+			State:     nil,
+			StateDiff: nil,
+		},
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	fmt.Println("[+] debug: start PendingMultiCallContractWithModify")
+
+	if _, err := ec.PendingMultiCallContractWithModify(context.Background(), []ethereum.CallMsg{msg}, map[common.Address]ethapi.OverrideAccount{
+		common.HexToAddress("0xe9ae3261a475a27bb1028f140bc2a7c843318afd"): {
+			Nonce:     nil,
+			Code:      nil,
+			Balance:   nil,
+			State:     nil,
+			StateDiff: nil,
+		},
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCallPendingCallContractAndModify(t *testing.T) {
+	backend, _ := newTestBackend(t)
+	client, _ := backend.Attach()
+	defer backend.Close()
+	defer client.Close()
+
+	testCallContractWithOverride(t, client)
 }
 
 func TestEthClient(t *testing.T) {

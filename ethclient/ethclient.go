@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -526,6 +527,26 @@ func (ec *Client) PendingCallContract(ctx context.Context, msg ethereum.CallMsg)
 	return hex, nil
 }
 
+func (ec *Client) PendingCallContractWithModify(ctx context.Context, msg ethereum.CallMsg,
+	overrides ethapi.StateOverride) ([]byte, error) {
+	var hex hexutil.Bytes
+	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(msg), "pending", overrides)
+	if err != nil {
+		return nil, err
+	}
+	return hex, nil
+}
+
+func (ec *Client) PendingMultiCallContractWithModify(ctx context.Context, msg []ethereum.CallMsg,
+	overrides ethapi.StateOverride) ([]byte, error) {
+	var hex hexutil.Bytes
+	err := ec.c.CallContext(ctx, &hex, "eth_multiCall", toMultiCallArg(msg), "pending", overrides)
+	if err != nil {
+		return nil, err
+	}
+	return hex, nil
+}
+
 // SuggestGasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func (ec *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
@@ -648,4 +669,28 @@ func (p *rpcProgress) toSyncProgress() *ethereum.SyncProgress {
 		HealingTrienodes:    uint64(p.HealingTrienodes),
 		HealingBytecode:     uint64(p.HealingBytecode),
 	}
+}
+
+func toMultiCallArg(msgs []ethereum.CallMsg) interface{} {
+	arg := make([]map[string]interface{}, len(msgs))
+	for i := 0; i < len(msgs); i++ {
+		msg := msgs[i]
+		arg[i] = map[string]interface{}{
+			"from": msg.From,
+			"to":   msg.To,
+		}
+		if len(msg.Data) > 0 {
+			arg[i]["data"] = hexutil.Bytes(msg.Data)
+		}
+		if msg.Value != nil {
+			arg[i]["value"] = (*hexutil.Big)(msg.Value)
+		}
+		if msg.Gas != 0 {
+			arg[i]["gas"] = hexutil.Uint64(msg.Gas)
+		}
+		if msg.GasPrice != nil {
+			arg[i]["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
+		}
+	}
+	return arg
 }
