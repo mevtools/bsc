@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -499,6 +498,23 @@ func (ec *Client) PendingTransactionCount(ctx context.Context) (uint, error) {
 	return uint(num), err
 }
 
+// OverrideAccount indicates the overriding fields of account during the execution
+// of a message call.
+// Note, state and stateDiff can't be specified at the same time. If state is
+// set, message execution will only use the data in the given state. Otherwise
+// if statDiff is set, all diff will be applied first and then execute the call
+// message.
+type OverrideAccount struct {
+	Nonce     *hexutil.Uint64              `json:"nonce"`
+	Code      *hexutil.Bytes               `json:"code"`
+	Balance   **hexutil.Big                `json:"balance"`
+	State     *map[common.Hash]common.Hash `json:"state"`
+	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`
+}
+
+// StateOverride is the collection of overridden accounts.
+type StateOverride map[common.Address]OverrideAccount
+
 // Contract Calling
 
 // CallContract executes a message call transaction, which is directly executed in the VM
@@ -528,7 +544,7 @@ func (ec *Client) PendingCallContract(ctx context.Context, msg ethereum.CallMsg)
 }
 
 func (ec *Client) PendingCallContractWithModify(ctx context.Context, msg ethereum.CallMsg,
-	overrides ethapi.StateOverride) ([]byte, error) {
+	overrides StateOverride) ([]byte, error) {
 	var hex hexutil.Bytes
 	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(msg), "pending", overrides)
 	if err != nil {
@@ -538,7 +554,7 @@ func (ec *Client) PendingCallContractWithModify(ctx context.Context, msg ethereu
 }
 
 func (ec *Client) PendingMultiCallContractWithModify(ctx context.Context, msg []ethereum.CallMsg,
-	overrides ethapi.StateOverride) ([]byte, error) {
+	overrides StateOverride) ([]byte, error) {
 	var hex hexutil.Bytes
 	err := ec.c.CallContext(ctx, &hex, "eth_multiCall", toMultiCallArg(msg), "pending", overrides)
 	if err != nil {
