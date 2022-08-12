@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 	"reflect"
 	"testing"
@@ -355,7 +354,7 @@ func testCallContractWithOverride(t *testing.T, client *rpc.Client) {
 		Value: big.NewInt(1),
 	}
 	fmt.Println("[+] debug: start PendingCallContractAndModify")
-	if _, err := ec.PendingCallContractWithModify(context.Background(), msg, map[common.Address]ethapi.OverrideAccount{
+	if _, err := ec.PendingCallContractWithModify(context.Background(), msg, StateOverride{
 		common.HexToAddress("0xe9ae3261a475a27bb1028f140bc2a7c843318afd"): {
 			Nonce:     nil,
 			Code:      nil,
@@ -369,7 +368,7 @@ func testCallContractWithOverride(t *testing.T, client *rpc.Client) {
 
 	fmt.Println("[+] debug: start PendingMultiCallContractWithModify")
 
-	if _, err := ec.PendingMultiCallContractWithModify(context.Background(), []ethereum.CallMsg{msg}, map[common.Address]ethapi.OverrideAccount{
+	if _, err := ec.PendingMultiCallContractWithModify(context.Background(), []ethereum.CallMsg{msg}, StateOverride{
 		common.HexToAddress("0xe9ae3261a475a27bb1028f140bc2a7c843318afd"): {
 			Nonce:     nil,
 			Code:      nil,
