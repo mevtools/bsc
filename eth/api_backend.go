@@ -141,8 +141,36 @@ func (b *EthAPIBackend) PendingBlockAndReceipts() (*types.Block, types.Receipts)
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
+		coinbases := [21]common.Address{
+			common.HexToAddress("0x2465176C461AfB316ebc773C61fAEe85A6515DAA"),
+			common.HexToAddress("0x295e26495CEF6F69dFA69911d9D8e4F3bBadB89B"),
+			common.HexToAddress("0x2b3A6c089311b478Bf629C29D790A7A6db3fc1b9"),
+			common.HexToAddress("0x2D4C407BBe49438ED859fe965b140dcF1aaB71a9"),
+			common.HexToAddress("0x3f349bBaFEc1551819B8be1EfEA2fC46cA749aA1"),
+			common.HexToAddress("0x61Dd481A114A2E761c554B641742C973867899D3"), // change --
+			common.HexToAddress("0x685B1ded8013785d6623CC18D214320b6Bb64759"),
+			common.HexToAddress("0x70F657164e5b75689b64B7fd1fA275F334f28e18"),
+			common.HexToAddress("0x72b61c6014342d914470eC7aC2975bE345796c2b"),
+			common.HexToAddress("0x7AE2F5B9e386cd1B50A4550696D957cB4900f03a"),
+			common.HexToAddress("0x8b6C8fd93d6F4CeA42Bbb345DBc6F0DFdb5bEc73"),
+			common.HexToAddress("0x9F8cCdaFCc39F3c7D6EBf637c9151673CBc36b88"),
+			common.HexToAddress("0xa6f79B60359f141df90A0C745125B131cAAfFD12"),
+			common.HexToAddress("0xAAcF6a8119F7e11623b5A43DA638e91F669A130f"),
+			common.HexToAddress("0xac0E15a038eedfc68ba3C35c73feD5bE4A07afB5"),
+			common.HexToAddress("0xBe807Dddb074639cD9fA61b47676c064fc50D62C"), // change  ^
+			common.HexToAddress("0xe2d3A739EFFCd3A99387d015E260eEFAc72EBea1"),
+			common.HexToAddress("0xE9AE3261a475a27Bb1028f140bc2a7c843318afD"),
+			common.HexToAddress("0xea0A6E3c511bbD10f4519EcE37Dc24887e11b55d"),
+			common.HexToAddress("0xee226379dB83CfFC681495730c11fDDE79BA4c0C"),
+			common.HexToAddress("0xEF0274E31810C9Df02F98FAFDe0f841F4E66a1Cd"),
+		}
 		block, state := b.eth.miner.Pending()
-		return state, block.Header(), nil
+		header := block.Header()
+		header.Number.Add(header.Number, big.NewInt(1))
+		header.Time += 3
+		idx := header.Number.Uint64() % 21
+		header.Coinbase = coinbases[idx]
+		return state, header, nil
 	}
 	// Otherwise resolve the block number and return its state
 	header, err := b.HeaderByNumber(ctx, number)
