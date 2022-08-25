@@ -538,8 +538,8 @@ func (ec *Client) CallContract(ctx context.Context, msg ethereum.CallMsg, blockN
 // blockNumber selects the block height at which the call runs. It can be nil, in which
 // case the code is taken from the latest known block. Note that state from very old
 // blocks might not be available.
-func (ec *Client) MultiCallContract(ctx context.Context, msg []ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
-	var hex hexutil.Bytes
+func (ec *Client) MultiCallContract(ctx context.Context, msg []ethereum.CallMsg, blockNumber *big.Int) ([]hexutil.Bytes, error) {
+	var hex []hexutil.Bytes
 	err := ec.c.CallContext(ctx, &hex, "eth_multiCall", toMultiCallArg(msg), toBlockNumArg(blockNumber))
 	if err != nil {
 		return nil, err
@@ -569,8 +569,8 @@ func (ec *Client) PendingCallContractWithModify(ctx context.Context, msg ethereu
 }
 
 func (ec *Client) PendingMultiCallContractWithModify(ctx context.Context, msg []ethereum.CallMsg,
-	overrides StateOverride) ([]byte, error) {
-	var hex hexutil.Bytes
+	overrides StateOverride) ([]hexutil.Bytes, error) {
+	var hex []hexutil.Bytes
 	err := ec.c.CallContext(ctx, &hex, "eth_multiCall", toMultiCallArg(msg), "pending", overrides)
 	if err != nil {
 		return nil, err
