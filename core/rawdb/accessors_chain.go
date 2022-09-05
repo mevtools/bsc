@@ -409,7 +409,7 @@ func deleteHeaderWithoutNumber(db ethdb.KeyValueWriter, hash common.Hash, number
 	}
 }
 
-// isCanon is an internal utility method, to check whether the given number/hash
+// isCanon is an exinternal utility method, to check whether the given number/hash
 // is part of the ancient (canon) set.
 func isCanon(reader ethdb.AncientReader, number uint64, hash common.Hash) bool {
 	h, err := reader.Ancient(freezerHashTable, number)
@@ -628,7 +628,7 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 	if len(data) == 0 {
 		return nil
 	}
-	// Convert the receipts from their storage form to their internal representation
+	// Convert the receipts from their storage form to their exinternal representation
 	storageReceipts := []*types.ReceiptForStorage{}
 	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)

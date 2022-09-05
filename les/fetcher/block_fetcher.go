@@ -833,7 +833,7 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 }
 
 // forgetHash removes all traces of a block announcement from the fetcher's
-// internal state.
+// exinternal state.
 func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	// Remove all pending announces and decrement DOS counters
 	if announceMap, ok := f.announced[hash]; ok {
@@ -876,7 +876,7 @@ func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	}
 }
 
-// forgetBlock removes all traces of a queued block from the fetcher's internal
+// forgetBlock removes all traces of a queued block from the fetcher's exinternal
 // state.
 func (f *BlockFetcher) forgetBlock(hash common.Hash) {
 	if insert := f.queued[hash]; insert != nil {

@@ -62,8 +62,8 @@ var (
 	StatusBlockNewer   = VerifyStatus{Code: 0x302, Msg: "can’t verify because of block number larger than current height"}
 	StatusPossibleFork = VerifyStatus{Code: 0x303, Msg: "can’t verify because of possible fork detected"}
 
-	// StatusUnexpectedError is unexpected internal error.
-	StatusUnexpectedError = VerifyStatus{Code: 0x400, Msg: "can’t verify because of unexpected internal error"}
+	// StatusUnexpectedError is unexpected exinternal error.
+	StatusUnexpectedError = VerifyStatus{Code: 0x400, Msg: "can’t verify because of unexpected exinternal error"}
 )
 
 // A BlockNonce is a 64-bit hash which proves (combined with the
@@ -144,7 +144,7 @@ func (h *Header) Hash() common.Hash {
 
 var headerSize = common.StorageSize(reflect.TypeOf(Header{}).Size())
 
-// Size returns the approximate memory used by all internal contents. It is used
+// Size returns the approximate memory used by all exinternal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *Header) Size() common.StorageSize {
 	return headerSize + common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen()+h.Number.BitLen())/8)

@@ -33,7 +33,7 @@ import (
 // A global Refresh function should also be called periodically.
 type LazyQueue struct {
 	clock mclock.Clock
-	// Items are stored in one of two internal queues ordered by estimated max
+	// Items are stored in one of two exinternal queues ordered by estimated max
 	// priority until the next and the next-after-next refresh. Update and Refresh
 	// always places items in queue[1].
 	queue                      [2]*sstack
@@ -120,7 +120,7 @@ func (q *LazyQueue) Pop() (interface{}, int64) {
 	return resData, resPri
 }
 
-// peekIndex returns the index of the internal queue where the item with the
+// peekIndex returns the index of the exinternal queue where the item with the
 // highest estimated priority is or -1 if both are empty
 func (q *LazyQueue) peekIndex() int {
 	if q.queue[0].Len() != 0 {
@@ -181,7 +181,7 @@ func (q *LazyQueue) Size() int {
 	return q.queue[0].Len() + q.queue[1].Len()
 }
 
-// setIndex0 translates internal queue item index to the virtual index space of LazyQueue
+// setIndex0 translates exinternal queue item index to the virtual index space of LazyQueue
 func (q *LazyQueue) setIndex0(data interface{}, index int) {
 	if index == -1 {
 		q.setIndex(data, -1)
@@ -190,7 +190,7 @@ func (q *LazyQueue) setIndex0(data interface{}, index int) {
 	}
 }
 
-// setIndex1 translates internal queue item index to the virtual index space of LazyQueue
+// setIndex1 translates exinternal queue item index to the virtual index space of LazyQueue
 func (q *LazyQueue) setIndex1(data interface{}, index int) {
 	q.setIndex(data, index+index+1)
 }

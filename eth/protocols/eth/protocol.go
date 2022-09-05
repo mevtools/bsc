@@ -134,7 +134,7 @@ type NewBlockHashesPacket []struct {
 
 // Unpack retrieves the block hashes and numbers from the announcement packet
 // and returns them in a split flat format that's more consistent with the
-// internal data structures.
+// exinternal data structures.
 func (p *NewBlockHashesPacket) Unpack() ([]common.Hash, []uint64) {
 	var (
 		hashes  = make([]common.Hash, len(*p))
@@ -273,7 +273,7 @@ type BlockBody struct {
 }
 
 // Unpack retrieves the transactions and uncles from the range packet and returns
-// them in a split flat format that's more consistent with the internal data structures.
+// them in a split flat format that's more consistent with the exinternal data structures.
 func (p *BlockBodiesPacket) Unpack() ([][]*types.Transaction, [][]*types.Header) {
 	var (
 		txset    = make([][]*types.Transaction, len(*p))

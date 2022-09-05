@@ -77,7 +77,7 @@ type NodeIterator interface {
 	Hash() common.Hash
 
 	// Parent returns the hash of the parent of the current node. The hash may be the one
-	// grandparent if the immediate parent is an internal node with no hash.
+	// grandparent if the immediate parent is an exinternal node with no hash.
 	Parent() common.Hash
 
 	// Path returns the hex-encoded path to the current node.
@@ -131,7 +131,7 @@ type nodeIterator struct {
 	trie  *Trie                // Trie being iterated
 	stack []*nodeIteratorState // Hierarchy of trie nodes persisting the iteration state
 	path  []byte               // Path to the current node
-	err   error                // Failure set in case of an internal error in the iterator
+	err   error                // Failure set in case of an exinternal error in the iterator
 
 	resolver ethdb.KeyValueReader // Optional intermediate resolver above the disk layer
 }
@@ -236,7 +236,7 @@ func (it *nodeIterator) Error() error {
 }
 
 // Next moves the iterator to the next node, returning whether there are any
-// further nodes. In case of an internal error this method returns false and
+// further nodes. In case of an exinternal error this method returns false and
 // sets the Error field to the encountered failure. If `descend` is false,
 // skips iterating over any subnodes of the current node.
 func (it *nodeIterator) Next(descend bool) bool {

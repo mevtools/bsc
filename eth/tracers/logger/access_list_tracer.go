@@ -107,7 +107,7 @@ func (al accessList) accessList() types.AccessList {
 }
 
 // AccessListTracer is a tracer that accumulates touched accounts and storage
-// slots into an internal set.
+// slots into an exinternal set.
 type AccessListTracer struct {
 	excl map[common.Address]struct{} // Set of account to exclude from the list
 	list accessList                  // Set of accounts and storage slots touched

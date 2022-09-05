@@ -902,7 +902,7 @@ func (diff *StateOverride) Apply(state *state.StateDB) error {
 	return nil
 }
 
-func DoMultiCall(ctx context.Context, b Backend, args []TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, vmCfg vm.Config, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
+func DoMultiCall(ctx context.Context, b Backend, args []TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, vmCfg vm.Config, timeout time.Duration, globalGasCap uint64) ([]*core.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -939,18 +939,22 @@ func DoMultiCall(ctx context.Context, b Backend, args []TransactionArgs, blockNr
 
 	// Execute the message.
 	gp := new(core.GasPool).AddGas(math.MaxUint64)
-	result, err := core.ApplyMessage(evm, firstMsg, gp)
-	if err := vmError(); err != nil {
-		return nil, err
-	}
 
-	for i := 1; i < len(args); i++ {
+	// result, err := core.ApplyMessage(evm, firstMsg, gp)
+	// if err := vmError(); err != nil {
+	// 	return nil, err
+	// }
+
+	var result []*core.ExecutionResult
+	var applyMessageOutput *core.ExecutionResult
+	for i := 0; i < len(args); i++ {
 		msg, _ := args[i].ToMessage(globalGasCap, header.BaseFee)
 		gp = new(core.GasPool).AddGas(math.MaxUint64)
-		result, err = core.ApplyMessage(evm, msg, gp)
+		applyMessageOutput, err = core.ApplyMessage(evm, msg, gp)
 		if err := vmError(); err != nil {
 			return nil, err
 		}
+		result = append(result, applyMessageOutput)
 	}
 
 	// If the timer caused an abort, return an appropriate error message
@@ -1055,7 +1059,6 @@ func (e *revertError) ErrorData() interface{} {
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
 func (s *PublicBlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
-	//fmt.Println("[+] debug overrides in Call: ", overrides)
 	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, s.b.RPCEVMTimeout(), s.b.RPCGasCap())
 	if err != nil {
 		return nil, err
@@ -1067,17 +1070,26 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args TransactionArgs, bl
 	return result.Return(), result.Err
 }
 
-func (s *PublicBlockChainAPI) MultiCall(ctx context.Context, args []TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
-	//fmt.Println("[+] debug overrides in MultiCall: ", overrides)
-	result, err := DoMultiCall(ctx, s.b, args, blockNrOrHash, overrides, vm.Config{}, 5*time.Second, s.b.RPCGasCap())
+func (s *PublicBlockChainAPI) MultiCall(ctx context.Context, args []TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) ([]hexutil.Bytes, error) {
+	results, err := DoMultiCall(ctx, s.b, args, blockNrOrHash, overrides, vm.Config{}, 5*time.Second, s.b.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
-	// If the result contains a revert reason, try to unpack and return it.
-	if len(result.Revert()) > 0 {
-		return nil, newRevertError(result)
+
+	var response []hexutil.Bytes
+	var responseErr error
+	for _, result := range results {
+		// If the result contains a revert reason, try to unpack and return it.
+		if len(result.Revert()) > 0 {
+			return nil, newRevertError(result)
+		}
+		response = append(response, result.Return())
+		if result.Err != nil {
+			responseErr = result.Err
+		}
 	}
-	return result.Return(), result.Err
+
+	return response, responseErr
 }
 
 func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, gasCap uint64) (hexutil.Uint64, error) {
@@ -2510,7 +2522,7 @@ func (s *PublicNetAPI) Version() string {
 	return fmt.Sprintf("%d", s.networkVersion)
 }
 
-// checkTxFee is an internal function used to check whether the fee of
+// checkTxFee is an exinternal function used to check whether the fee of
 // the given transaction is _reasonable_(under the cap).
 func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
 	// Short circuit if there is no cap for transaction fee at all.

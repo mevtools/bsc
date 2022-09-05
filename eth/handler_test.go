@@ -184,7 +184,7 @@ func newTestHandlerWithBlocks(blocks int) *testHandler {
 	}
 }
 
-// close tears down the handler and all its internal constructs.
+// close tears down the handler and all its exinternal constructs.
 func (b *testHandler) close() {
 	b.handler.Stop()
 	b.chain.Stop()

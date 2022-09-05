@@ -133,7 +133,7 @@ func NewStaticFilter(config *params.ChainConfig, genesis common.Hash) Filter {
 	return newFilter(config, genesis, head)
 }
 
-// newFilter is the internal version of NewFilter, taking closures as its arguments
+// newFilter is the exinternal version of NewFilter, taking closures as its arguments
 // instead of a chain. The reason is to allow testing it without having to simulate
 // an entire blockchain.
 func newFilter(config *params.ChainConfig, genesis common.Hash, headfn func() uint64) Filter {

@@ -59,7 +59,7 @@ func prefixedRlpHash(prefix byte, x interface{}) (h common.Hash) {
 }
 
 // TrieHasher is the tool used to calculate the hash of derivable list.
-// This is internal, do not use.
+// This is exinternal, do not use.
 type TrieHasher interface {
 	Reset()
 	Update([]byte, []byte)
@@ -68,7 +68,7 @@ type TrieHasher interface {
 
 // DerivableList is the input to DeriveSha.
 // It is implemented by the 'Transactions' and 'Receipts' types.
-// This is internal, do not use these methods.
+// This is exinternal, do not use these methods.
 type DerivableList interface {
 	Len() int
 	EncodeIndex(int, *bytes.Buffer)

@@ -92,7 +92,7 @@ type Peer struct {
 
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
-	lock   sync.RWMutex  // Mutex protecting the internal fields
+	lock   sync.RWMutex  // Mutex protecting the exinternal fields
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol

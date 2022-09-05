@@ -549,6 +549,7 @@ func (srv *Server) setupLocalNode() error {
 			defer srv.loopWG.Done()
 			if ip, err := srv.NAT.ExternalIP(); err == nil {
 				srv.localnode.SetStaticIP(ip)
+				srv.log.Info("ask the router for external IP", "externalIp", ip)
 			}
 		}()
 	}

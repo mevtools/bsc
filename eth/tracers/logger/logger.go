@@ -59,7 +59,7 @@ type Config struct {
 
 //go:generate gencodec -type StructLog -field-override structLogMarshaling -out gen_structlog.go
 
-// StructLog is emitted to the EVM each cycle and lists information about the current internal state
+// StructLog is emitted to the EVM each cycle and lists information about the current exinternal state
 // prior to the execution of the statement.
 type StructLog struct {
 	Pc            uint64                      `json:"pc"`
