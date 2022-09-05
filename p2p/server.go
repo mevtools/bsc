@@ -89,6 +89,12 @@ type Config struct {
 	// Setting DialRatio to zero defaults it to 3.
 	DialRatio int `toml:",omitempty"`
 
+	// PERI_PEER_EVICTION_POLICY_CODE_PIECE
+	// When DialRatio = 1, all peers are outbound.
+	// This is usually less robust than leave a few inbound slots.
+	// Use this flag to set minimum inbound slots.
+	PeriMinInBound int
+
 	// NoDiscovery can be used to disable the peer discovery mechanism.
 	// Disabling is useful for protocol debugging (manual topology).
 	NoDiscovery bool

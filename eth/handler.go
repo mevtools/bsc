@@ -345,6 +345,14 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		peer.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
 	}
+
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	peerEnode := peer.Node().URLv4()
+	if peri.isBlocked(peerEnode) {
+		log.Warn("rejected node in the blacklist", "peer", peerEnode[EnodeSplitIndex:])
+		return p2p.DiscSelf
+	}
+
 	reject := false // reserved peer slots
 	if atomic.LoadUint32(&h.snapSync) == 1 {
 		if snap == nil {

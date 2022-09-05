@@ -96,6 +96,9 @@ var Defaults = Config{
 	RPCEVMTimeout: 5 * time.Second,
 	GPO:           FullNodeGPO,
 	RPCTxFeeCap:   1, // 1 ether
+
+	// PERI_PEER_EVICTION_POLICY_CODE_PIECE
+	PeriActive: false,
 }
 
 func init() {
@@ -228,6 +231,22 @@ type Config struct {
 
 	// OverrideTerminalTotalDifficulty (TODO: remove after the fork)
 	OverrideTerminalTotalDifficulty *big.Int `toml:",omitempty"`
+
+	// PERI_PEER_EVICTION_POLICY_CODE_PIECE
+	PeriActive               bool    // global switch of Peri peer eviction policy
+	PeriPeriod               uint64  // period of peer reselection in seconds
+	PeriReplaceRatio         float64 // 0~1, ratio of replaced peers in each epoch
+	PeriMinInbound           int     //
+	PeriMaxDelayPenalty      uint64  // Maximum delay of a tx recorded at a neighbor in ms
+	PeriMaxDeliveryTolerance int64
+	PeriObservedTxRatio      int      // (1 / sampling rate) of global latency; must be int
+	PeriTargeted             bool     // global latency if `false`, targeted latency if `true` (target accounts in `TargetAccountList`)
+	PeriShowTxDelivery       bool     // Controls whether the console prints all txs
+	PeriTargetAccountList    []string // list of target accounts
+	PeriNoPeerIPList         []string // node with IP addresses in this list are permanently blocked
+	PeriNoDropList           []string
+	PeriMaxTransactionAmount int // max count of old transactions in old arrival record
+	PeriMaxBlockAmount       int // max count of old blocks in old arrival record
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

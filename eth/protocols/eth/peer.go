@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"math/rand"
 	"sync"
+	"time"
 
 	mapset "github.com/deckarep/golang-set"
 
@@ -93,6 +94,9 @@ type Peer struct {
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
 	lock   sync.RWMutex  // Mutex protecting the exinternal fields
+
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	ConnectedTimestamp int64
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
@@ -116,6 +120,9 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		term:            make(chan struct{}),
 		txTerm:          make(chan struct{}),
 	}
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	peer.ConnectedTimestamp = time.Now().UnixNano()
+
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
 	go peer.broadcastTransactions()

@@ -149,6 +149,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 	applyMetricConfig(ctx, &cfg)
 
+	log.Info("load peri peer eviction policy config", "PeriActive", cfg.Eth.PeriActive, "p2p.PeriMinInBound", stack.Server().PeriMinInBound)
 	return stack, cfg
 }
 

@@ -30,6 +30,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
+//PERI_AND_LATENCY_RECORDER_CODE_PIECE
+var peri *Peri = nil
+
 // ethHandler implements the eth.Backend interface to handle the various network
 // packets that are sent as replies or broadcasts.
 type ethHandler handler
@@ -63,18 +66,34 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	switch packet := packet.(type) {
 	case *eth.NewBlockHashesPacket:
 		hashes, numbers := packet.Unpack()
+		// 区块hash，就是区块的announcement
+		//log.Warn("handler new block announcement packet", "numbers", numbers)
+		if peri != nil {
+			peri.recordBlockAnnounces(peer, hashes, numbers, true)
+		}
 		return h.handleBlockAnnounces(peer, hashes, numbers)
 
 	case *eth.NewBlockPacket:
+		// 收到其他节点要求转发的区块主体
+		//log.Warn("handler new block body packet", "number", fmt.Sprint(packet.Block.Number()), "peer", peer)
+		if peri != nil {
+			peri.recordBlockBody(peer, packet.Block)
+		}
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
 
 	case *eth.NewPooledTransactionHashesPacket:
+		// 交易hash，就是交易的announcement
+		//log.Warn("handler new pooled transaction hashes packet", "hash", fmt.Sprint(*packet))
 		return h.txFetcher.Notify(peer.ID(), *packet)
 
 	case *eth.TransactionsPacket:
+		// 收到其他节点要求转发的交易主体，要求广播。
+		//log.Warn("handler transaction packet", "hash", fmt.Sprint(*packet))
 		return h.txFetcher.Enqueue(peer.ID(), *packet, false)
 
 	case *eth.PooledTransactionsPacket:
+		// 收到其他节点要求回复的交易主体，要求回复。
+		//log.Warn("handler pooled transactions", "hash", fmt.Sprint(*packet))
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 	default:
 		return fmt.Errorf("unexpected eth packet type: %T", packet)
