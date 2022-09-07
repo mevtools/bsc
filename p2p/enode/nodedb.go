@@ -504,3 +504,32 @@ func (db *DB) Close() {
 	close(db.quit)
 	db.lvl.Close()
 }
+
+// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+
+func (db *DB) StoreInt64(key []byte, n int64) error {
+	blob := make([]byte, binary.MaxVarintLen64)
+	blob = blob[:binary.PutVarint(blob, n)]
+	return db.lvl.Put(key, blob, nil)
+}
+
+func (db *DB) FetchUint64(key []byte) uint64 {
+	blob, err := db.lvl.Get(key, nil)
+	if err != nil {
+		return 0
+	}
+	val, _ := binary.Uvarint(blob)
+	return val
+}
+
+func (db *DB) StoreString(key []byte, value string) error {
+	return db.lvl.Put(key, []byte(value), nil)
+}
+
+func (db *DB) FetchString(key []byte) string {
+	blob, err := db.lvl.Get(key, nil)
+	if err != nil {
+		return ""
+	}
+	return string(blob)
+}

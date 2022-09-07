@@ -302,6 +302,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	// Successful startup; push a marker and check previous unclean shutdowns.
 	eth.shutdownTracker.MarkStartup()
 
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	eth.config.PeriDataDirectory = stack.ResolvePath("")
+
 	return eth, nil
 }
 
@@ -610,7 +613,7 @@ func (s *Ethereum) Start() error {
 	s.handler.Start(maxPeers)
 
 	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	peri = CreatePeri(s.config, s.handler)
+	peri = CreatePeri(s.p2pServer, s.config, s.handler)
 	//log.Info("debug print address of 'peri' in backend.go", "p", reflect.ValueOf(peri).Pointer())
 	// start running peri eviction
 	peri.StartPeri()

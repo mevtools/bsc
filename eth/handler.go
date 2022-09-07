@@ -549,7 +549,7 @@ func (h *handler) removePeer(id string) {
 
 // unregisterPeer removes a peer from the downloader, fetchers and main peer set.
 func (h *handler) unregisterPeer(id string) {
-	// Create a custom logger to avoid printing the entire id
+	// Create a custom fileLogger to avoid printing the entire id
 	var logger log.Logger
 	if len(id) < 16 {
 		// Tests use short IDs, don't choke on them

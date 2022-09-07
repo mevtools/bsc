@@ -7,10 +7,17 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math"
 	"math/rand"
+	"os"
+	"os/signal"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -21,13 +28,17 @@ const (
 	TransactionArrivalReplace = 30000
 	BlockArrivalReplace       = 50
 	EnodeSplitIndex           = 137
+	PeriNodeDbPath            = "peri_nodes"
+	PeriNodeCountKey          = "nodes_count"
+	PeriNodeKeyPrefix         = "n_"
 )
 
 type Peri struct {
-	config           *ethconfig.Config // ethconfig used globally during program execution
-	handler          *handler          // implement handler to blocks and transactions arriving
-	replaceCount     int               // count of replacement during every period
-	maxDelayDuration int64             // max delay duration in nano time
+	config               *ethconfig.Config // ethconfig used globally during program execution
+	handler              *handler          // implement handler to blocks and transactions arriving
+	replaceCount         int               // count of replacement during every period
+	maxDelayDuration     int64             // max delay duration in nano time
+	blockAnnouncePenalty int64
 
 	approachingMiners bool
 
@@ -42,6 +53,9 @@ type Peri struct {
 
 	peersSnapShot map[string]string // record peers id to enode, used by noDropPeer function
 	blacklist     map[string]bool   // black list of ip address
+
+	fileLogger log.Logger // eviction log
+	nodesDb    *enode.DB
 }
 
 type idScore struct {
@@ -73,17 +87,24 @@ func blockAnnouncesFromHashesAndNumbers(hashes []common.Hash, numbers []uint64) 
 	return result
 }
 
-func CreatePeri(config *ethconfig.Config, h *handler) *Peri {
+func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Peri {
+	var (
+		err  error
+		f    *os.File
+		node *enode.Node
+		nodes []*enode.Node
+	)
 	peri := &Peri{
-		config:            config,
-		handler:           h,
-		locker:            new(sync.Mutex),
-		replaceCount:      int(math.Round(float64(h.maxPeers) * config.PeriReplaceRatio)),
-		maxDelayDuration:  int64(config.PeriMaxDelayPenalty * Milli2Nano),
-		approachingMiners: true,
-		txArrivals:        make(map[common.Hash]int64),
-		txArrivalPerPeer:  make(map[common.Hash]map[string]int64),
-		txOldArrivals:     make(map[common.Hash]int64),
+		config:               config,
+		handler:              h,
+		locker:               new(sync.Mutex),
+		replaceCount:         int(math.Round(float64(h.maxPeers) * config.PeriReplaceRatio)),
+		maxDelayDuration:     int64(config.PeriMaxDelayPenalty * Milli2Nano),
+		blockAnnouncePenalty: int64(config.PeriBlockAnnouncePenalty * Milli2Nano),
+		approachingMiners:    true,
+		txArrivals:           make(map[common.Hash]int64),
+		txArrivalPerPeer:     make(map[common.Hash]map[string]int64),
+		txOldArrivals:        make(map[common.Hash]int64),
 
 		blockArrivals:       make(map[blockAnnounce]int64),
 		blockArrivalPerPeer: make(map[blockAnnounce]map[string]int64),
@@ -91,18 +112,87 @@ func CreatePeri(config *ethconfig.Config, h *handler) *Peri {
 
 		peersSnapShot: make(map[string]string),
 		blacklist:     make(map[string]bool),
+		fileLogger:    log.New(),
 	}
+
+	databasePath := filepath.Join(config.PeriDataDirectory, PeriNodeDbPath)
+	peri.nodesDb, err = enode.OpenDB(databasePath)
+	if err != nil {
+		log.Crit("open peri database failed", "err", err)
+	}
+
+	periNodesCount := peri.nodesDb.FetchUint64([]byte(PeriNodeCountKey))
+	if periNodesCount > 0 {
+		for i := 0; i < int(periNodesCount); i++ {
+			enodeUrl := peri.nodesDb.FetchString([]byte(PeriNodeKeyPrefix + strconv.Itoa(i)))
+			if enodeUrl != "" {
+				node, err = enode.Parse(enode.ValidSchemes, enodeUrl)
+				if err != nil {
+					log.Warn("parse enode failed when create peri", "err", err, "url", enodeUrl)
+					continue
+				}
+				nodes = append(nodes, node)
+			}
+		}
+	}
+	p2pServe.AddPeriInitialNodes(nodes)
+
+	if config.PeriLogFilePath != "" {
+		f, err = os.OpenFile(config.PeriLogFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			log.Crit("open peri log file failed", "err", err)
+		}
+		logHandler := log.StreamHandler(f, log.LogfmtFormat())
+		peri.fileLogger.SetHandler(logHandler)
+	}
+
 	return peri
 }
 
 // StartPeri Start Peri (at the initialization of geth)
 func (p *Peri) StartPeri() {
 	go func() {
+		var (
+			interrupt       = make(chan os.Signal, 1)
+			killed          = false
+			saveNodesOnExit = false
+			err             error
+		)
+		signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(interrupt)
+		defer p.nodesDb.Close()
+
 		ticker := time.NewTicker(time.Second * time.Duration(p.config.PeriPeriod))
-		for {
-			log.Warn("new peri period start disconnect by score")
-			<-ticker.C
-			p.disconnectByScore()
+		for killed == false {
+			select {
+			case <-ticker.C:
+				log.Warn("new peri period start disconnect by score")
+				p.disconnectByScore()
+				saveNodesOnExit = true
+			case <-interrupt:
+				log.Warn("peri eviction policy interrupted")
+				killed = true
+			}
+		}
+
+		if saveNodesOnExit {
+			scores, _ := p.getScores()
+			numDrop := p.replaceCount + len(scores) - p.handler.maxPeers
+			if numDrop < 0 {
+				numDrop = 0
+			}
+			scores = scores[numDrop:]
+			err = p.nodesDb.StoreInt64([]byte(PeriNodeCountKey), int64(len(scores)))
+			if err != nil {
+				log.Warn("peri store node count failed when exit", "err", err)
+			}
+			for i, element := range scores {
+				enode := p.peersSnapShot[element.id]
+				err = p.nodesDb.StoreString([]byte(PeriNodeKeyPrefix+strconv.Itoa(i)), enode)
+				if err != nil {
+					log.Warn("peri store enode failed when exit", "err", err)
+				}
+			}
 		}
 	}()
 }
@@ -122,6 +212,10 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 		enode                 = peer.Peer.Node().URLv4()
 		newBlockAnnouncements = blockAnnouncesFromHashesAndNumbers(hashes, numbers)
 	)
+
+	if isAnnouncement {
+		timestamp += p.blockAnnouncePenalty
+	}
 
 	p.lock()
 	defer p.unlock()
@@ -467,18 +561,23 @@ func extractIPFromEnode(enode string) string {
 }
 
 func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop int) {
-	log.Warn("peri policy is triggered", "timestamp", time.Now())
+	timestamp := time.Now()
+	log.Warn("peri policy is triggered", "timestamp", timestamp)
+	p.fileLogger.Warn("peri policy is triggered", "timestamp", timestamp)
 	blockCount, transactionCount, peerCount := len(p.blockArrivals), len(p.txArrivals), len(scores)
 	if p.approachingMiners == true {
 		log.Warn("Peri policy summary", "count of blocks", blockCount, "count of peers", peerCount, "count of drop", numDrop)
+		p.fileLogger.Warn("Peri policy summary", "count of blocks", blockCount, "count of peers", peerCount, "count of drop", numDrop)
 		if blockCount == 0 {
 			return
 		}
 		for _, element := range scores {
-			log.Debug("Peri computation score of peers", "enode", element.id, "score", element.score)
+			log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
+			p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
 		}
 	} else {
 		log.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
+		p.fileLogger.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
 		if transactionCount == 0 {
 			return
 		}
@@ -488,4 +587,8 @@ func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop i
 func (p *Peri) isBlocked(enode string) bool {
 	_, blocked := p.blacklist[extractIPFromEnode(enode)]
 	return blocked
+}
+
+func (p *Peri) broadcastBlockToPioplatPeer(block *types.Block) {
+
 }

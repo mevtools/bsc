@@ -669,6 +669,13 @@ func (srv *Server) setupDialScheduler() {
 	}
 }
 
+// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+
+func (srv *Server) AddPeriInitialNodes(nodes []*enode.Node) {
+	srv.dialsched.wg.Add(1)
+	go srv.dialsched.readNodes(enode.IterNodes(nodes))
+}
+
 func (srv *Server) maxInboundConns() int {
 	return srv.MaxPeers - srv.maxDialedConns()
 }

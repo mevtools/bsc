@@ -81,6 +81,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriReplaceRatio                float64
 		PeriMinInbound                  int
 		PeriMaxDelayPenalty             uint64
+		PeriBlockAnnouncePenalty        uint64
 		PeriMaxDeliveryTolerance        int64
 		PeriObservedTxRatio             int
 		PeriTargeted                    bool
@@ -88,6 +89,10 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriTargetAccountList           []string
 		PeriNoPeerIPList                []string
 		PeriNoDropList                  []string
+		PeriMaxTransactionAmount        int
+		PeriMaxBlockAmount              int
+		PeriLogFilePath                 string
+		PeriPioplatPeer                 []string
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -153,6 +158,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriReplaceRatio = c.PeriReplaceRatio
 	enc.PeriMinInbound = c.PeriMinInbound
 	enc.PeriMaxDelayPenalty = c.PeriMaxDelayPenalty
+	enc.PeriBlockAnnouncePenalty = c.PeriBlockAnnouncePenalty
 	enc.PeriMaxDeliveryTolerance = c.PeriMaxDeliveryTolerance
 	enc.PeriObservedTxRatio = c.PeriObservedTxRatio
 	enc.PeriTargeted = c.PeriTargeted
@@ -160,6 +166,10 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriTargetAccountList = c.PeriTargetAccountList
 	enc.PeriNoPeerIPList = c.PeriNoPeerIPList
 	enc.PeriNoDropList = c.PeriNoDropList
+	enc.PeriMaxTransactionAmount = c.PeriMaxTransactionAmount
+	enc.PeriMaxBlockAmount = c.PeriMaxBlockAmount
+	enc.PeriLogFilePath = c.PeriLogFilePath
+	enc.PeriPioplatPeer = c.PeriPioplatPeer
 	return &enc, nil
 }
 
@@ -229,6 +239,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriReplaceRatio                *float64
 		PeriMinInbound                  *int
 		PeriMaxDelayPenalty             *uint64
+		PeriBlockAnnouncePenalty        *uint64
 		PeriMaxDeliveryTolerance        *int64
 		PeriObservedTxRatio             *int
 		PeriTargeted                    *bool
@@ -236,6 +247,10 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriTargetAccountList           []string
 		PeriNoPeerIPList                []string
 		PeriNoDropList                  []string
+		PeriMaxTransactionAmount        *int
+		PeriMaxBlockAmount              *int
+		PeriLogFilePath                 *string
+		PeriPioplatPeer                 []string
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -430,6 +445,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.PeriMaxDelayPenalty != nil {
 		c.PeriMaxDelayPenalty = *dec.PeriMaxDelayPenalty
 	}
+	if dec.PeriBlockAnnouncePenalty != nil {
+		c.PeriBlockAnnouncePenalty = *dec.PeriBlockAnnouncePenalty
+	}
 	if dec.PeriMaxDeliveryTolerance != nil {
 		c.PeriMaxDeliveryTolerance = *dec.PeriMaxDeliveryTolerance
 	}
@@ -450,6 +468,18 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.PeriNoDropList != nil {
 		c.PeriNoDropList = dec.PeriNoDropList
+	}
+	if dec.PeriMaxTransactionAmount != nil {
+		c.PeriMaxTransactionAmount = *dec.PeriMaxTransactionAmount
+	}
+	if dec.PeriMaxBlockAmount != nil {
+		c.PeriMaxBlockAmount = *dec.PeriMaxBlockAmount
+	}
+	if dec.PeriLogFilePath != nil {
+		c.PeriLogFilePath = *dec.PeriLogFilePath
+	}
+	if dec.PeriPioplatPeer != nil {
+		c.PeriPioplatPeer = dec.PeriPioplatPeer
 	}
 	return nil
 }

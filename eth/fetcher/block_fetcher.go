@@ -33,9 +33,15 @@ import (
 )
 
 const (
-	lightTimeout        = time.Millisecond       // Time allowance before an announced header is explicitly requested
-	arriveTimeout       = 500 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
-	gatherSlack         = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
+	lightTimeout = time.Millisecond // Time allowance before an announced header is explicitly requested
+
+	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
+	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
+
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	// arriveTimeout = 2 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
+	// gatherSlack   = 1 * time.Millisecond // Interval used to collate almost-expired announces with fetches
+
 	fetchTimeout        = 5 * time.Second        // Maximum allotted time to return an explicitly requested block/transaction
 	reQueueBlockTimeout = 500 * time.Millisecond // Time allowance before blocks are requeued for import
 
@@ -470,6 +476,11 @@ func (f *BlockFetcher) loop() {
 				if f.light {
 					timeout = 0
 				}
+
+				// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+				// turn off "only request if not received block after arrive Timeout-gather Slack"
+				timeout = 0
+
 				if time.Since(announces[0].time) > timeout {
 					// Pick a random peer to retrieve from, reset all others
 					announce := announces[rand.Intn(len(announces))]
