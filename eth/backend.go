@@ -248,7 +248,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 
-	if eth.handler, err = newHandler(&handlerConfig{
+	ethHandlerConfig := &handlerConfig{
 		Database:               chainDb,
 		Chain:                  eth.blockchain,
 		TxPool:                 eth.txPool,
@@ -263,7 +263,17 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		DiffSync:               config.DiffSync,
 		DisablePeerTxBroadcast: config.DisablePeerTxBroadcast,
 		PeerSet:                peers,
-	}); err != nil {
+
+		// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+		PeriBroadcast: config.PeriBroadcast,
+		PeriPeersIp:   make(map[string]interface{}),
+	}
+
+	for _, ip := range config.PeriPeersIp {
+		ethHandlerConfig.PeriPeersIp[ip] = nil
+	}
+
+	if eth.handler, err = newHandler(ethHandlerConfig); err != nil {
 		return nil, err
 	}
 

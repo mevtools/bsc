@@ -99,6 +99,10 @@ type handlerConfig struct {
 	DirectBroadcast        bool
 	DisablePeerTxBroadcast bool
 	PeerSet                *peerSet
+
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	PeriBroadcast bool
+	PeriPeersIp   map[string]interface{}
 }
 
 type handler struct {
@@ -110,6 +114,10 @@ type handler struct {
 	acceptTxs       uint32 // Flag whether we're considered synchronised (enables transaction processing)
 	directBroadcast bool
 	diffSync        bool // Flag whether diff sync should operate on top of the diff protocol
+
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	periBroadcast bool                   // Flag whether broadcast block to peri peer
+	periPeersIp   map[string]interface{} // A map recording all ip of peri peers
 
 	checkpointNumber uint64      // Block number for the sync progress validator to cross reference
 	checkpointHash   common.Hash // Block hash for the sync progress validator to cross reference
@@ -163,6 +171,8 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		merger:                 config.Merger,
 		whitelist:              config.Whitelist,
 		directBroadcast:        config.DirectBroadcast,
+		periBroadcast:          config.PeriBroadcast,
+		periPeersIp:            config.PeriPeersIp,
 		diffSync:               config.DiffSync,
 		quitSync:               make(chan struct{}),
 	}
@@ -654,6 +664,19 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 		var transfer []*ethPeer
 		if h.directBroadcast {
 			transfer = peers[:]
+		} else if h.periBroadcast {
+			// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+			othersPeerCnt := int(math.Cbrt(float64(len(peers))))
+			for _, peer := range peers {
+				if _, isPeriPeer := h.periPeersIp[peer.Node().IP().String()]; isPeriPeer {
+					transfer = append(transfer, peer)
+				} else {
+					if othersPeerCnt > 0 {
+						transfer = append(transfer, peer)
+						othersPeerCnt--
+					}
+				}
+			}
 		} else {
 			transfer = peers[:int(math.Sqrt(float64(len(peers))))]
 		}

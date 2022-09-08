@@ -89,9 +89,9 @@ func blockAnnouncesFromHashesAndNumbers(hashes []common.Hash, numbers []uint64) 
 
 func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Peri {
 	var (
-		err  error
-		f    *os.File
-		node *enode.Node
+		err   error
+		f     *os.File
+		node  *enode.Node
 		nodes []*enode.Node
 	)
 	peri := &Peri{
@@ -223,6 +223,7 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 	for _, blockAnnouncement := range newBlockAnnouncements {
 		if _, stale := p.blockOldArrivals[blockAnnouncement]; stale {
 			// already seen this block so skip this new block announcement
+			log.Warn("peri already seen this block so skip this new block announcement", "block", blockAnnouncement.number)
 			continue
 		}
 
@@ -574,6 +575,9 @@ func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop i
 		for _, element := range scores {
 			log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
 			p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
+		}
+		for blockAnnouncement := range p.blockArrivalPerPeer {
+			p.fileLogger.Warn("Peri record per peer sent blocks", "block", blockAnnouncement.number, "value", p.blockArrivalPerPeer[blockAnnouncement])
 		}
 	} else {
 		log.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)

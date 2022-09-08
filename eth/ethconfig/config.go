@@ -251,6 +251,8 @@ type Config struct {
 	PeriLogFilePath          string   // peri log file path
 	PeriPioplatPeer          []string // other peri nodes, as known as pioplat project
 	PeriDataDirectory        string   // database to store evicted peers
+	PeriBroadcast            bool     // Flag whether broadcast block to peri peers
+	PeriPeersIp              []string // Peri peers' ip list
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

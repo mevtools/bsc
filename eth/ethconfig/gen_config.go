@@ -93,6 +93,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriMaxBlockAmount              int
 		PeriLogFilePath                 string
 		PeriPioplatPeer                 []string
+		PeriDataDirectory               string
+		PeriBroadcast                   bool
+		PeriPeersIp                     []string
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -170,6 +173,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriMaxBlockAmount = c.PeriMaxBlockAmount
 	enc.PeriLogFilePath = c.PeriLogFilePath
 	enc.PeriPioplatPeer = c.PeriPioplatPeer
+	enc.PeriDataDirectory = c.PeriDataDirectory
+	enc.PeriBroadcast = c.PeriBroadcast
+	enc.PeriPeersIp = c.PeriPeersIp
 	return &enc, nil
 }
 
@@ -251,6 +257,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriMaxBlockAmount              *int
 		PeriLogFilePath                 *string
 		PeriPioplatPeer                 []string
+		PeriDataDirectory               *string
+		PeriBroadcast                   *bool
+		PeriPeersIp                     []string
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -480,6 +489,15 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.PeriPioplatPeer != nil {
 		c.PeriPioplatPeer = dec.PeriPioplatPeer
+	}
+	if dec.PeriDataDirectory != nil {
+		c.PeriDataDirectory = *dec.PeriDataDirectory
+	}
+	if dec.PeriBroadcast != nil {
+		c.PeriBroadcast = *dec.PeriBroadcast
+	}
+	if dec.PeriPeersIp != nil {
+		c.PeriPeersIp = dec.PeriPeersIp
 	}
 	return nil
 }
