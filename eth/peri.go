@@ -576,9 +576,6 @@ func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop i
 			log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
 			p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
 		}
-		for blockAnnouncement := range p.blockArrivalPerPeer {
-			p.fileLogger.Warn("Peri record per peer sent blocks", "block", blockAnnouncement.number, "value", p.blockArrivalPerPeer[blockAnnouncement])
-		}
 	} else {
 		log.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
 		p.fileLogger.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
