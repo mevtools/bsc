@@ -78,7 +78,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		//log.Warn("handler new block body packet", "number", fmt.Sprint(packet.Block.Number()), "peer", peer)
 		if peri != nil {
 			peri.recordBlockBody(peer, packet.Block)
-			// todo: 收到区块主体，第一时间广播给集群中其他节点
+			peri.broadcastBlockToPioplatPeer(packet.Block, packet.TD)
 		}
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
 

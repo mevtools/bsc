@@ -359,7 +359,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
 	peerEnode := peer.Node().URLv4()
 	if peri.isBlocked(peerEnode) {
-		log.Warn("rejected node in the blacklist", "peer", peerEnode[EnodeSplitIndex:])
+		log.Debug("rejected node in the blacklist", "peer", peerEnode[enodeSplitIndex:])
 		return p2p.DiscSelf
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math"
+	"math/big"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -24,13 +25,13 @@ import (
 // PERI_AND_LATENCY_RECORDER_CODE_PIECE
 
 const (
-	Milli2Nano                = 1000000
-	TransactionArrivalReplace = 30000
-	BlockArrivalReplace       = 50
-	EnodeSplitIndex           = 137
-	PeriNodeDbPath            = "peri_nodes"
-	PeriNodeCountKey          = "nodes_count"
-	PeriNodeKeyPrefix         = "n_"
+	milli2Nano                = 1000000
+	transactionArrivalReplace = 30000
+	enodeSplitIndex           = 137
+	periNodeDbPath            = "peri_nodes"
+	periNodeCountKey          = "nodes_count"
+	periNodeKeyPrefix         = "n_"
+	maxBlockDist              = 32 // Maximum allowed distance from the chain head to block received
 )
 
 type Peri struct {
@@ -45,11 +46,10 @@ type Peri struct {
 	locker           *sync.Mutex                      // locker to protect the below map fields.
 	txArrivals       map[common.Hash]int64            // record whether transactions are received, announcement and body are treated equally
 	txArrivalPerPeer map[common.Hash]map[string]int64 // record transactions timestamp by peers
-	txOldArrivals    map[common.Hash]int64            // record all stale transactions, todo: how to define it?
+	txOldArrivals    map[common.Hash]int64            // record all stale transactions, avoid the situation where the message from the straggler is recorded
 
 	blockArrivals       map[blockAnnounce]int64
 	blockArrivalPerPeer map[blockAnnounce]map[string]int64
-	blockOldArrivals    map[blockAnnounce]int64
 
 	peersSnapShot map[string]string // record peers id to enode, used by noDropPeer function
 	blacklist     map[string]bool   // black list of ip address
@@ -99,8 +99,8 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 		handler:              h,
 		locker:               new(sync.Mutex),
 		replaceCount:         int(math.Round(float64(h.maxPeers) * config.PeriReplaceRatio)),
-		maxDelayDuration:     int64(config.PeriMaxDelayPenalty * Milli2Nano),
-		blockAnnouncePenalty: int64(config.PeriBlockAnnouncePenalty * Milli2Nano),
+		maxDelayDuration:     int64(config.PeriMaxDelayPenalty * milli2Nano),
+		blockAnnouncePenalty: int64(config.PeriBlockAnnouncePenalty * milli2Nano),
 		approachingMiners:    true,
 		txArrivals:           make(map[common.Hash]int64),
 		txArrivalPerPeer:     make(map[common.Hash]map[string]int64),
@@ -108,23 +108,22 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 
 		blockArrivals:       make(map[blockAnnounce]int64),
 		blockArrivalPerPeer: make(map[blockAnnounce]map[string]int64),
-		blockOldArrivals:    make(map[blockAnnounce]int64),
 
 		peersSnapShot: make(map[string]string),
 		blacklist:     make(map[string]bool),
 		fileLogger:    log.New(),
 	}
 
-	databasePath := filepath.Join(config.PeriDataDirectory, PeriNodeDbPath)
+	databasePath := filepath.Join(config.PeriDataDirectory, periNodeDbPath)
 	peri.nodesDb, err = enode.OpenDB(databasePath)
 	if err != nil {
 		log.Crit("open peri database failed", "err", err)
 	}
 
-	periNodesCount := peri.nodesDb.FetchUint64([]byte(PeriNodeCountKey))
+	periNodesCount := peri.nodesDb.FetchUint64([]byte(periNodeCountKey))
 	if periNodesCount > 0 {
 		for i := 0; i < int(periNodesCount); i++ {
-			enodeUrl := peri.nodesDb.FetchString([]byte(PeriNodeKeyPrefix + strconv.Itoa(i)))
+			enodeUrl := peri.nodesDb.FetchString([]byte(periNodeKeyPrefix + strconv.Itoa(i)))
 			if enodeUrl != "" {
 				node, err = enode.Parse(enode.ValidSchemes, enodeUrl)
 				if err != nil {
@@ -182,13 +181,13 @@ func (p *Peri) StartPeri() {
 				numDrop = 0
 			}
 			scores = scores[numDrop:]
-			err = p.nodesDb.StoreInt64([]byte(PeriNodeCountKey), int64(len(scores)))
+			err = p.nodesDb.StoreInt64([]byte(periNodeCountKey), int64(len(scores)))
 			if err != nil {
 				log.Warn("peri store node count failed when exit", "err", err)
 			}
 			for i, element := range scores {
 				enode := p.peersSnapShot[element.id]
-				err = p.nodesDb.StoreString([]byte(PeriNodeKeyPrefix+strconv.Itoa(i)), enode)
+				err = p.nodesDb.StoreString([]byte(periNodeKeyPrefix+strconv.Itoa(i)), enode)
 				if err != nil {
 					log.Warn("peri store enode failed when exit", "err", err)
 				}
@@ -209,7 +208,7 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 	var (
 		timestamp             = time.Now().UnixNano()
 		peerId                = peer.ID()
-		enode                 = peer.Peer.Node().URLv4()
+		enodeUrl              = peer.Peer.Node().URLv4()
 		newBlockAnnouncements = blockAnnouncesFromHashesAndNumbers(hashes, numbers)
 	)
 
@@ -221,8 +220,7 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 	defer p.unlock()
 
 	for _, blockAnnouncement := range newBlockAnnouncements {
-		if _, stale := p.blockOldArrivals[blockAnnouncement]; stale {
-			// already seen this block so skip this new block announcement
+		if dist := int64(blockAnnouncement.number) - int64(p.handler.chain.CurrentBlock().NumberU64()); dist < -maxBlockDist {
 			log.Warn("peri already seen this block so skip this new block announcement", "block", blockAnnouncement.number)
 			continue
 		}
@@ -242,9 +240,9 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 
 		if p.config.PeriShowTxDelivery {
 			if isAnnouncement {
-				log.Info("receive block announcement", "peer", enode[EnodeSplitIndex:], "blocknumber", blockAnnouncement.number)
+				log.Info("receive block announcement", "peer", enodeUrl[enodeSplitIndex:], "blocknumber", blockAnnouncement.number)
 			} else {
-				log.Info("receive full block body", "peer", enode[EnodeSplitIndex:], "blocknumber", blockAnnouncement.number)
+				log.Info("receive full block body", "peer", enodeUrl[enodeSplitIndex:], "blocknumber", blockAnnouncement.number)
 			}
 		}
 	}
@@ -286,7 +284,7 @@ func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash) 
 		}
 
 		if p.config.PeriShowTxDelivery {
-			log.Info("receive transaction announcement", "peer", enode[EnodeSplitIndex:], "tx", fmt.Sprint(txAnnouncement))
+			log.Info("receive transaction announcement", "peer", enode[enodeSplitIndex:], "tx", fmt.Sprint(txAnnouncement))
 		}
 	}
 
@@ -333,7 +331,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 			}
 			if peerForwardCount == 0 {
 				// the peer maybe connect too late, if so, excuse it from computing scores temporarily
-				if peerBirthTimestamp > latestArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*Milli2Nano {
+				if peerBirthTimestamp > latestArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*milli2Nano {
 					excused[id] = true
 				}
 				peerAverageDelay = float64(p.maxDelayDuration)
@@ -380,8 +378,8 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 
 					arrival, forwarded := p.txArrivalPerPeer[tx][id]
 					delay := arrival - firstArrival
-					if !forwarded || delay > int64(p.config.PeriMaxDelayPenalty*Milli2Nano) {
-						delay = int64(p.config.PeriMaxDelayPenalty * Milli2Nano)
+					if !forwarded || delay > int64(p.config.PeriMaxDelayPenalty*milli2Nano) {
+						delay = int64(p.config.PeriMaxDelayPenalty * milli2Nano)
 					} else if p.config.PeriTargeted {
 						if !loggy.Config.FlagAllTx {
 							if delay == 0 {
@@ -397,8 +395,8 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 				}
 
 				if ntx == 0 { // Check if the peer is connected too late (if so, excuse it temporarily)
-					avgDelay = float64(int64(p.config.PeriMaxDelayPenalty * Milli2Nano))
-					if birth > latestArrival-p.config.PeriMaxDeliveryTolerance*Milli2Nano {
+					avgDelay = float64(int64(p.config.PeriMaxDelayPenalty * milli2Nano))
+					if birth > latestArrival-p.config.PeriMaxDeliveryTolerance*milli2Nano {
 						excused[id] = true
 					}
 				} else {
@@ -443,9 +441,6 @@ func (p *Peri) resetRecords() {
 	for tx, arrival := range p.txArrivals {
 		p.txOldArrivals[tx] = arrival
 	}
-	for block, arrival := range p.blockArrivals {
-		p.blockOldArrivals[block] = arrival
-	}
 
 	// clear old arrival states which are assumed not to be forwarded anymore
 	if len(p.txOldArrivals) > p.config.PeriMaxTransactionAmount {
@@ -467,30 +462,8 @@ func (p *Peri) resetRecords() {
 		})
 
 		// Delete the earliest arrivals
-		for i := 0; i < TransactionArrivalReplace; i++ {
+		for i := 0; i < transactionArrivalReplace; i++ {
 			delete(p.txOldArrivals, listArrivals[i].txHash)
-		}
-	}
-
-	if len(p.blockOldArrivals) > p.config.PeriMaxBlockAmount {
-		listArrivals := make([]struct {
-			blockAnnouncement blockAnnounce
-			arrivalTimestamp  int64
-		}, 0, len(p.blockOldArrivals))
-
-		for block, arrival := range p.blockOldArrivals {
-			listArrivals = append(listArrivals, struct {
-				blockAnnouncement blockAnnounce
-				arrivalTimestamp  int64
-			}{block, arrival})
-		}
-
-		sort.Slice(listArrivals, func(i, j int) bool {
-			return listArrivals[i].arrivalTimestamp < listArrivals[j].arrivalTimestamp
-		})
-
-		for i := 0; i < BlockArrivalReplace; i++ {
-			delete(p.blockOldArrivals, listArrivals[i].blockAnnouncement)
 		}
 	}
 
@@ -558,7 +531,7 @@ func extractIPFromEnode(enode string) string {
 	//parts := strings.Split(enode, "@")
 	//parts = strings.Split(parts[len(parts)-1], ":")
 	//return parts[0]
-	return enode[EnodeSplitIndex:]
+	return enode[enodeSplitIndex:]
 }
 
 func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop int) {
@@ -590,6 +563,26 @@ func (p *Peri) isBlocked(enode string) bool {
 	return blocked
 }
 
-func (p *Peri) broadcastBlockToPioplatPeer(block *types.Block) {
+func (p *Peri) broadcastBlockToPioplatPeer(block *types.Block, td *big.Int) {
+	if p.handler.periBroadcast {
+		// use map p.handler.periPeersIp to decide whether broadcast this block
+		pioplatCount := 0
+		for _, ethPeerElement := range p.handler.peers.peers {
+			peerIp := ethPeerElement.Node().IP().String()
+			if _, found := p.handler.periPeersIp[peerIp]; found {
+				if ethPeerElement.KnownBlock(block.Hash()) == false {
+					ethPeerElement.AsyncSendNewBlock(block, td)
+					if p.config.PeriShowTxDelivery {
+						log.Info("deliver block to pioplat peer", "block", block.NumberU64(), "ip", peerIp)
+					}
+				}
 
+				// all Pioplat nodes have been searched, ending early.
+				pioplatCount += 1
+				if pioplatCount >= len(p.handler.periPeersIp) {
+					return
+				}
+			}
+		}
+	}
 }
