@@ -258,33 +258,34 @@ func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash) 
 	var (
 		timestamp = time.Now().UnixNano()
 		peerId    = peer.ID()
-		enode     = peer.Peer.Node().URLv4()
+		enodeUrl  = peer.Peer.Node().URLv4()
 	)
 
 	p.lock()
 	defer p.unlock()
 
-	for _, txAnnouncement := range hashes {
-		if _, stale := p.txOldArrivals[txAnnouncement]; stale {
-			// already seen this block so skip this new block announcement
+	for _, txHash := range hashes {
+		if _, stale := p.txOldArrivals[txHash]; stale {
+			// already seen this transaction so skip this new transaction announcement
+			log.Warn("peri already seen this transaction so skip this new transaction announcement", "tx", txHash)
 			continue
 		}
 
-		arrivalTimestamp, arrived := p.txArrivals[txAnnouncement]
+		arrivalTimestamp, arrived := p.txArrivals[txHash]
 		if arrived {
-			// already seen this block then check which one is earlier
+			// already seen this transaction then check which one is earlier
 			if timestamp < arrivalTimestamp {
-				p.txArrivals[txAnnouncement] = timestamp
+				p.txArrivals[txHash] = timestamp
 			}
-			p.txArrivalPerPeer[txAnnouncement][peerId] = timestamp
+			p.txArrivalPerPeer[txHash][peerId] = timestamp
 		} else {
 			// first received then update information
-			p.txArrivals[txAnnouncement] = timestamp
-			p.txArrivalPerPeer[txAnnouncement] = map[string]int64{peerId: timestamp}
+			p.txArrivals[txHash] = timestamp
+			p.txArrivalPerPeer[txHash] = map[string]int64{peerId: timestamp}
 		}
 
 		if p.config.PeriShowTxDelivery {
-			log.Info("receive transaction announcement", "peer", enode[enodeSplitIndex:], "tx", fmt.Sprint(txAnnouncement))
+			log.Info("receive transaction announcement", "peer", enodeUrl[enodeSplitIndex:], "tx", fmt.Sprint(txHash))
 		}
 	}
 
@@ -345,42 +346,46 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 			})
 		}
 	} else {
-
-		/*
-			for txHash, arrivalTimestamp := range p.txArrivals {
+		for _, arrivalTimestamp := range p.txArrivals {
+			/*
+				// check whether transaction is target transaction
+				// currently using a array indicates where it belongs to some sender
 				if p.config.PeriTargeted {
-					// check whether transaction is target transaction
-					// currently using a array indicates where it belongs to some sender
 					if _, isTarget := targetTx[txHash]; !isTarget {
 						continue
 					}
 				}
-				if arrivalTimestamp > latestArrivalTimestamp {
-					latestArrivalTimestamp = arrivalTimestamp
-				}
+			*/
+			if arrivalTimestamp > latestArrivalTimestamp {
+				latestArrivalTimestamp = arrivalTimestamp
 			}
+		}
 
-			// loop through the current peers instead of recorded ones
-			for id, peer := range p.handler.peers.peers {
-				snapshot[id] = p.handler.peers.peers[id].Node().URLv4()
-				birth := peer.Peer.Loggy_connectionStartTime.UnixNano()
+		// loop through the current peers instead of recorded ones
+		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
+		for id, peer := range p.handler.peers.peers {
+			p.peersSnapShot[id] = peer.Node().URLv4()
+			peerBirthTimestamp = peer.Peer.ConnectedTimestamp
 
-				ntx, totalDelay, avgDelay := 0, int64(0), 0.0
-				for tx, firstArrival := range arrivals {
+			for tx, firstArrival := range p.txArrivals {
+				/*
 					if p.config.PeriTargeted {
 						if _, isTarget := targetTx[tx]; !isTarget {
 							continue
 						}
 					}
-					if firstArrival < birth {
-						continue
-					}
+				*/
+				if firstArrival < peerBirthTimestamp {
+					continue
+				}
 
-					arrival, forwarded := p.txArrivalPerPeer[tx][id]
-					delay := arrival - firstArrival
-					if !forwarded || delay > int64(p.config.PeriMaxDelayPenalty*milli2Nano) {
-						delay = int64(p.config.PeriMaxDelayPenalty * milli2Nano)
-					} else if p.config.PeriTargeted {
+				arrival, forwarded := p.txArrivalPerPeer[tx][id]
+				delay := arrival - firstArrival
+				if !forwarded || delay > p.maxDelayDuration {
+					delay = p.maxDelayDuration
+				}
+				/*
+					else if p.config.PeriTargeted {
 						if !loggy.Config.FlagAllTx {
 							if delay == 0 {
 								loggy.ObserveAll(tx, peer.Node().URLv4(), firstArrival)
@@ -389,23 +394,23 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 							loggy.ObserveAll(tx, peer.Node().URLv4(), arrival)
 						}
 					}
-
-					ntx++
-					totalDelay += delay
-				}
-
-				if ntx == 0 { // Check if the peer is connected too late (if so, excuse it temporarily)
-					avgDelay = float64(int64(p.config.PeriMaxDelayPenalty * milli2Nano))
-					if birth > latestArrival-p.config.PeriMaxDeliveryTolerance*milli2Nano {
-						excused[id] = true
-					}
-				} else {
-					avgDelay = float64(totalDelay) / float64(ntx)
-				}
-
-				scores = append(scores, idScore{id, avgDelay})
+				*/
+				peerForwardCount += 1
+				totalDelayDuration += delay
 			}
-		*/
+
+			if peerForwardCount == 0 {
+				// the peer maybe connect too late, if so, excuse it from computing scores temporarily
+				if peerBirthTimestamp > latestArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*milli2Nano {
+					excused[id] = true
+				}
+				peerAverageDelay = float64(p.maxDelayDuration)
+			} else {
+				peerAverageDelay = float64(totalDelayDuration) / float64(peerForwardCount)
+			}
+
+			scores = append(scores, idScore{id, peerAverageDelay})
+		}
 	}
 
 	// Scores are sorted by descending order
@@ -559,6 +564,8 @@ func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop i
 }
 
 func (p *Peri) isBlocked(enode string) bool {
+	p.lock()
+	defer p.unlock()
 	_, blocked := p.blacklist[extractIPFromEnode(enode)]
 	return blocked
 }

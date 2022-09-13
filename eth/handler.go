@@ -358,7 +358,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 
 	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
 	peerEnode := peer.Node().URLv4()
-	if peri.isBlocked(peerEnode) {
+	if peri != nil && peri.isBlocked(peerEnode) {
 		log.Debug("rejected node in the blacklist", "peer", peerEnode[enodeSplitIndex:])
 		return p2p.DiscSelf
 	}
@@ -664,19 +664,6 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 		var transfer []*ethPeer
 		if h.directBroadcast {
 			transfer = peers[:]
-		} else if h.periBroadcast {
-			// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-			othersPeerCnt := int(math.Cbrt(float64(len(peers))))
-			for _, peer := range peers {
-				if _, isPeriPeer := h.periPeersIp[peer.Node().IP().String()]; isPeriPeer {
-					transfer = append(transfer, peer)
-				} else {
-					if othersPeerCnt > 0 {
-						transfer = append(transfer, peer)
-						othersPeerCnt--
-					}
-				}
-			}
 		} else {
 			transfer = peers[:int(math.Sqrt(float64(len(peers))))]
 		}
@@ -686,18 +673,22 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 				// difflayer should send before block
 				peer.diffExt.SendDiffLayers([]rlp.RawValue{diff})
 			}
-			peer.AsyncSendNewBlock(block, td)
+			// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+			// todo: disable block body broadcast
+			//peer.AsyncSendNewBlock(block, td)
 		}
 
-		log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
+		log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "td", td, "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 		return
 	}
 	// Otherwise if the block is indeed in out own chain, announce it
 	if h.chain.HasBlock(hash, block.NumberU64()) {
-		for _, peer := range peers {
-			peer.AsyncSendNewBlockHash(block)
-		}
-		log.Trace("Announced block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
+		// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+		// todo: disable block hash broadcast
+		//for _, peer := range peers {
+		//	peer.AsyncSendNewBlockHash(block)
+		//}
+		//log.Trace("Announced block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 	}
 }
 
@@ -729,16 +720,18 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 			annos[peer] = append(annos[peer], tx.Hash())
 		}
 	}
-	for peer, hashes := range txset {
-		directPeers++
-		directCount += len(hashes)
-		peer.AsyncSendTransactions(hashes)
-	}
-	for peer, hashes := range annos {
-		annoPeers++
-		annoCount += len(hashes)
-		peer.AsyncSendPooledTransactionHashes(hashes)
-	}
+	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	// todo: disable transaction broadcast
+	//for peer, hashes := range txset {
+	//	directPeers++
+	//	directCount += len(hashes)
+	//	peer.AsyncSendTransactions(hashes)
+	//}
+	//for peer, hashes := range annos {
+	//	annoPeers++
+	//	annoCount += len(hashes)
+	//	peer.AsyncSendPooledTransactionHashes(hashes)
+	//}
 	log.Debug("Transaction broadcast", "txs", len(txs),
 		"announce packs", annoPeers, "announced hashes", annoCount,
 		"tx packs", directPeers, "broadcast txs", directCount)
