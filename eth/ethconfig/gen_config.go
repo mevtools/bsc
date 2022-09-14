@@ -81,7 +81,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriReplaceRatio                float64
 		PeriMinInbound                  int
 		PeriMaxDelayPenalty             uint64
-		PeriBlockAnnouncePenalty        uint64
+		PeriAnnouncePenalty             uint64
 		PeriMaxDeliveryTolerance        int64
 		PeriObservedTxRatio             int
 		PeriTargeted                    bool
@@ -96,6 +96,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriDataDirectory               string
 		PeriBroadcast                   bool
 		PeriPeersIp                     []string
+		PeriApproachMiners              bool
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -161,7 +162,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriReplaceRatio = c.PeriReplaceRatio
 	enc.PeriMinInbound = c.PeriMinInbound
 	enc.PeriMaxDelayPenalty = c.PeriMaxDelayPenalty
-	enc.PeriBlockAnnouncePenalty = c.PeriBlockAnnouncePenalty
+	enc.PeriAnnouncePenalty = c.PeriAnnouncePenalty
 	enc.PeriMaxDeliveryTolerance = c.PeriMaxDeliveryTolerance
 	enc.PeriObservedTxRatio = c.PeriObservedTxRatio
 	enc.PeriTargeted = c.PeriTargeted
@@ -176,6 +177,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriDataDirectory = c.PeriDataDirectory
 	enc.PeriBroadcast = c.PeriBroadcast
 	enc.PeriPeersIp = c.PeriPeersIp
+	enc.PeriApproachMiners = c.PeriApproachMiners
 	return &enc, nil
 }
 
@@ -245,7 +247,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriReplaceRatio                *float64
 		PeriMinInbound                  *int
 		PeriMaxDelayPenalty             *uint64
-		PeriBlockAnnouncePenalty        *uint64
+		PeriAnnouncePenalty             *uint64
 		PeriMaxDeliveryTolerance        *int64
 		PeriObservedTxRatio             *int
 		PeriTargeted                    *bool
@@ -260,6 +262,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriDataDirectory               *string
 		PeriBroadcast                   *bool
 		PeriPeersIp                     []string
+		PeriApproachMiners              *bool
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -454,8 +457,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.PeriMaxDelayPenalty != nil {
 		c.PeriMaxDelayPenalty = *dec.PeriMaxDelayPenalty
 	}
-	if dec.PeriBlockAnnouncePenalty != nil {
-		c.PeriBlockAnnouncePenalty = *dec.PeriBlockAnnouncePenalty
+	if dec.PeriAnnouncePenalty != nil {
+		c.PeriAnnouncePenalty = *dec.PeriAnnouncePenalty
 	}
 	if dec.PeriMaxDeliveryTolerance != nil {
 		c.PeriMaxDeliveryTolerance = *dec.PeriMaxDeliveryTolerance
@@ -498,6 +501,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.PeriPeersIp != nil {
 		c.PeriPeersIp = dec.PeriPeersIp
+	}
+	if dec.PeriApproachMiners != nil {
+		c.PeriApproachMiners = *dec.PeriApproachMiners
 	}
 	return nil
 }

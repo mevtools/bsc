@@ -238,7 +238,7 @@ type Config struct {
 	PeriReplaceRatio         float64 // 0~1, ratio of replaced peers in each epoch
 	PeriMinInbound           int     //
 	PeriMaxDelayPenalty      uint64  // Maximum delay of a tx recorded at a neighbor in ms
-	PeriBlockAnnouncePenalty uint64  // The penalty for announce, to encourage receive block body, in ms
+	PeriAnnouncePenalty      uint64  // The penalty for announce, to encourage receive block body, in ms
 	PeriMaxDeliveryTolerance int64
 	PeriObservedTxRatio      int      // (1 / sampling rate) of global latency; must be int
 	PeriTargeted             bool     // global latency if `false`, targeted latency if `true` (target accounts in `TargetAccountList`)
@@ -253,6 +253,7 @@ type Config struct {
 	PeriDataDirectory        string   // database to store evicted peers
 	PeriBroadcast            bool     // Flag whether broadcast block to peri peers
 	PeriPeersIp              []string // Peri peers' ip list
+	PeriApproachMiners       bool     // indicate whether Peri approach miners, if true -> miners, if false -> victims
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

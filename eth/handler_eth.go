@@ -85,16 +85,27 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	case *eth.NewPooledTransactionHashesPacket:
 		// 交易hash，就是交易的announcement
 		//log.Warn("handler new pooled transaction hashes packet", "hash", fmt.Sprint(*packet))
+		if peri != nil {
+			peri.recordTransactionAnnounces(peer, *packet, true)
+		}
 		return h.txFetcher.Notify(peer.ID(), *packet)
 
 	case *eth.TransactionsPacket:
 		// 收到其他节点要求转发的交易主体，要求广播。
 		//log.Warn("handler transaction packet", "hash", fmt.Sprint(*packet))
+		if peri != nil {
+			peri.recordTransactionBody(peer, *packet)
+			// todo
+		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, false)
 
 	case *eth.PooledTransactionsPacket:
 		// 收到其他节点要求回复的交易主体，要求回复。
 		//log.Warn("handler pooled transactions", "hash", fmt.Sprint(*packet))
+		if peri != nil {
+			peri.recordTransactionBody(peer, *packet)
+			// todo
+		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 	default:
 		return fmt.Errorf("unexpected eth packet type: %T", packet)

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -35,11 +36,11 @@ const (
 )
 
 type Peri struct {
-	config               *ethconfig.Config // ethconfig used globally during program execution
-	handler              *handler          // implement handler to blocks and transactions arriving
-	replaceCount         int               // count of replacement during every period
-	maxDelayDuration     int64             // max delay duration in nano time
-	blockAnnouncePenalty int64
+	config           *ethconfig.Config // ethconfig used globally during program execution
+	handler          *handler          // implement handler to blocks and transactions arriving
+	replaceCount     int               // count of replacement during every period
+	maxDelayDuration int64             // max delay duration in nano time
+	announcePenalty  int64
 
 	approachingMiners bool
 
@@ -95,16 +96,16 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 		nodes []*enode.Node
 	)
 	peri := &Peri{
-		config:               config,
-		handler:              h,
-		locker:               new(sync.Mutex),
-		replaceCount:         int(math.Round(float64(h.maxPeers) * config.PeriReplaceRatio)),
-		maxDelayDuration:     int64(config.PeriMaxDelayPenalty * milli2Nano),
-		blockAnnouncePenalty: int64(config.PeriBlockAnnouncePenalty * milli2Nano),
-		approachingMiners:    true,
-		txArrivals:           make(map[common.Hash]int64),
-		txArrivalPerPeer:     make(map[common.Hash]map[string]int64),
-		txOldArrivals:        make(map[common.Hash]int64),
+		config:            config,
+		handler:           h,
+		locker:            new(sync.Mutex),
+		replaceCount:      int(math.Round(float64(h.maxPeers) * config.PeriReplaceRatio)),
+		maxDelayDuration:  int64(config.PeriMaxDelayPenalty * milli2Nano),
+		announcePenalty:   int64(config.PeriAnnouncePenalty * milli2Nano),
+		approachingMiners: config.PeriApproachMiners,
+		txArrivals:        make(map[common.Hash]int64),
+		txArrivalPerPeer:  make(map[common.Hash]map[string]int64),
+		txOldArrivals:     make(map[common.Hash]int64),
 
 		blockArrivals:       make(map[blockAnnounce]int64),
 		blockArrivalPerPeer: make(map[blockAnnounce]map[string]int64),
@@ -213,7 +214,7 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 	)
 
 	if isAnnouncement {
-		timestamp += p.blockAnnouncePenalty
+		timestamp += p.announcePenalty
 	}
 
 	p.lock()
@@ -246,20 +247,22 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 			}
 		}
 	}
-
-	// todo
 }
 
 func (p *Peri) recordBlockBody(peer *eth.Peer, block *types.Block) {
 	p.recordBlockAnnounces(peer, []common.Hash{block.Hash()}, []uint64{block.Number().Uint64()}, false)
 }
 
-func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash) {
+func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash, isAnnouncement bool) {
 	var (
 		timestamp = time.Now().UnixNano()
 		peerId    = peer.ID()
 		enodeUrl  = peer.Peer.Node().URLv4()
 	)
+
+	if isAnnouncement {
+		timestamp += p.announcePenalty
+	}
 
 	p.lock()
 	defer p.unlock()
@@ -288,8 +291,14 @@ func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash) 
 			log.Info("receive transaction announcement", "peer", enodeUrl[enodeSplitIndex:], "tx", fmt.Sprint(txHash))
 		}
 	}
+}
 
-	// todo
+func (p *Peri) recordTransactionBody(peer *eth.Peer, transactions []*types.Transaction) {
+	var hashs = make([]common.Hash, 0, len(transactions))
+	for _, tx := range transactions {
+		hashs = append(hashs, tx.Hash())
+	}
+	p.recordTransactionAnnounces(peer, hashs, false)
 }
 
 func (p *Peri) getScores() ([]idScore, map[string]bool) {
@@ -367,7 +376,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 			p.peersSnapShot[id] = peer.Node().URLv4()
 			peerBirthTimestamp = peer.Peer.ConnectedTimestamp
 
-			for tx, firstArrival := range p.txArrivals {
+			for tx, arrivalTimestamp := range p.txArrivals {
 				/*
 					if p.config.PeriTargeted {
 						if _, isTarget := targetTx[tx]; !isTarget {
@@ -375,14 +384,14 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 						}
 					}
 				*/
-				if firstArrival < peerBirthTimestamp {
+				if arrivalTimestamp < peerBirthTimestamp {
 					continue
 				}
 
-				arrival, forwarded := p.txArrivalPerPeer[tx][id]
-				delay := arrival - firstArrival
-				if !forwarded || delay > p.maxDelayDuration {
-					delay = p.maxDelayDuration
+				arrivalTimestampThisPeer, forwardThisPeer := p.txArrivalPerPeer[tx][id]
+				peerDelayDuration = arrivalTimestampThisPeer - arrivalTimestamp
+				if !forwardThisPeer || peerDelayDuration > p.maxDelayDuration {
+					peerDelayDuration = p.maxDelayDuration
 				}
 				/*
 					else if p.config.PeriTargeted {
@@ -396,7 +405,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 					}
 				*/
 				peerForwardCount += 1
-				totalDelayDuration += delay
+				totalDelayDuration += peerDelayDuration
 			}
 
 			if peerForwardCount == 0 {
@@ -495,9 +504,13 @@ func (p *Peri) disconnectByScore() {
 	// show logs on console and persistent some information
 	p.summaryStats(scores, excused, numDrop)
 
-	// Check if there is no tx recorded. If so, everyone is excused and skip dropping peers
-	if len(p.blockArrivals) == 0 {
+	// Check if there is no block or transaction recorded. If so, everyone is excused and skip dropping peers
+	if p.approachingMiners && len(p.blockArrivals) == 0 {
 		log.Warn("no block recorded, peri policy skipped.", "peer count", p.handler.peers.len())
+		return
+	}
+	if p.approachingMiners == false && len(p.txArrivals) == 0 {
+		log.Warn("no transaction recorded, peri policy skipped.", "peer count", p.handler.peers.len())
 		return
 	}
 
@@ -533,10 +546,8 @@ func (p *Peri) disconnectByScore() {
 }
 
 func extractIPFromEnode(enode string) string {
-	//parts := strings.Split(enode, "@")
-	//parts = strings.Split(parts[len(parts)-1], ":")
-	//return parts[0]
-	return enode[enodeSplitIndex:]
+	parts := strings.Split(enode[enodeSplitIndex:], ":")
+	return parts[0]
 }
 
 func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop int) {
@@ -550,16 +561,16 @@ func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop i
 		if blockCount == 0 {
 			return
 		}
-		for _, element := range scores {
-			log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
-			p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
-		}
 	} else {
 		log.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
 		p.fileLogger.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
 		if transactionCount == 0 {
 			return
 		}
+	}
+	for _, element := range scores {
+		log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
+		p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
 	}
 }
 
@@ -588,6 +599,32 @@ func (p *Peri) broadcastBlockToPioplatPeer(block *types.Block, td *big.Int) {
 				pioplatCount += 1
 				if pioplatCount >= len(p.handler.periPeersIp) {
 					return
+				}
+			}
+		}
+	}
+}
+
+func (p *Peri) broadcastTransactionsToPioplatPeer(txHashs []common.Hash) {
+	if p.handler.periBroadcast {
+		for _, hash := range txHashs {
+			// use map p.handler.periPeersIp to decide whether broadcast this block
+			pioplatCount := 0
+			for _, ethPeerElement := range p.handler.peers.peers {
+				peerIp := ethPeerElement.Node().IP().String()
+				if _, found := p.handler.periPeersIp[peerIp]; found {
+					if ethPeerElement.KnownTransaction(hash) == false {
+						ethPeerElement.AsyncSendPooledTransactionHashes([]common.Hash{hash})
+						if p.config.PeriShowTxDelivery {
+							log.Info("deliver transaction to pioplat peer", "tx", hash, "ip", peerIp)
+						}
+					}
+
+					// all Pioplat nodes have been searched, ending early.
+					pioplatCount += 1
+					if pioplatCount >= len(p.handler.periPeersIp) {
+						return
+					}
 				}
 			}
 		}
