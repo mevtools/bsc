@@ -581,52 +581,58 @@ func (p *Peri) isBlocked(enode string) bool {
 	return blocked
 }
 
-func (p *Peri) broadcastBlockToPioplatPeer(block *types.Block, td *big.Int) {
+func (p *Peri) broadcastBlockToPioplatPeer(peer *eth.Peer, block *types.Block, td *big.Int) {
+	if dist := int64(block.NumberU64()) - int64(p.handler.chain.CurrentBlock().NumberU64()); dist < -maxBlockDist || dist > maxBlockDist {
+		return
+	}
+
 	if p.handler.periBroadcast {
 		// use map p.handler.periPeersIp to decide whether broadcast this block
 		pioplatCount := 0
+		p.handler.peers.lock.RLock()
 		for _, ethPeerElement := range p.handler.peers.peers {
 			peerIp := ethPeerElement.Node().IP().String()
 			if _, found := p.handler.periPeersIp[peerIp]; found {
 				if ethPeerElement.KnownBlock(block.Hash()) == false {
 					ethPeerElement.AsyncSendNewBlock(block, td)
-					if p.config.PeriShowTxDelivery {
-						log.Info("deliver block to pioplat peer", "block", block.NumberU64(), "ip", peerIp)
-					}
+					log.Info("deliver block to pioplat peer", "block", block.NumberU64(), "from", peer.Node().IP().String(), "to", peerIp)
 				}
 
 				// all Pioplat nodes have been searched, ending early.
 				pioplatCount += 1
 				if pioplatCount >= len(p.handler.periPeersIp) {
-					return
+					break
 				}
 			}
 		}
+		p.handler.peers.lock.RUnlock()
 	}
 }
 
-func (p *Peri) broadcastTransactionsToPioplatPeer(txHashs []common.Hash) {
+func (p *Peri) broadcastTransactionsToPioplatPeer(txs []*types.Transaction) {
 	if p.handler.periBroadcast {
-		for _, hash := range txHashs {
+		for _, tx := range txs {
 			// use map p.handler.periPeersIp to decide whether broadcast this block
 			pioplatCount := 0
+			p.handler.peers.lock.RLock()
 			for _, ethPeerElement := range p.handler.peers.peers {
 				peerIp := ethPeerElement.Node().IP().String()
 				if _, found := p.handler.periPeersIp[peerIp]; found {
-					if ethPeerElement.KnownTransaction(hash) == false {
-						ethPeerElement.AsyncSendPooledTransactionHashes([]common.Hash{hash})
+					if ethPeerElement.KnownTransaction(tx.Hash()) == false {
+						ethPeerElement.AsyncSendPooledTransactionHashes([]common.Hash{tx.Hash()})
 						if p.config.PeriShowTxDelivery {
-							log.Info("deliver transaction to pioplat peer", "tx", hash, "ip", peerIp)
+							log.Info("deliver transaction to pioplat peer", "tx", tx.Hash(), "ip", peerIp)
 						}
 					}
 
 					// all Pioplat nodes have been searched, ending early.
 					pioplatCount += 1
 					if pioplatCount >= len(p.handler.periPeersIp) {
-						return
+						break
 					}
 				}
 			}
+			p.handler.peers.lock.RUnlock()
 		}
 	}
 }
