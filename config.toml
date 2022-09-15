@@ -18,7 +18,6 @@ PeriTargetAccountList  = []
 PeriNoPeerIPList   = []
 PeriNoDropList  = []
 PeriLogFilePath = "/data/bsc/geth/peri.log"
-PeriPioplatPeer = []
 PeriBroadcast = true
 PeriPeersIp = ["45.77.47.164","45.32.17.137","45.76.14.203","144.202.107.16","47.104.75.25"]
 PeriApproachMiners = true

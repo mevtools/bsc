@@ -92,7 +92,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriMaxTransactionAmount        int
 		PeriMaxBlockAmount              int
 		PeriLogFilePath                 string
-		PeriPioplatPeer                 []string
 		PeriDataDirectory               string
 		PeriBroadcast                   bool
 		PeriPeersIp                     []string
@@ -173,7 +172,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriMaxTransactionAmount = c.PeriMaxTransactionAmount
 	enc.PeriMaxBlockAmount = c.PeriMaxBlockAmount
 	enc.PeriLogFilePath = c.PeriLogFilePath
-	enc.PeriPioplatPeer = c.PeriPioplatPeer
 	enc.PeriDataDirectory = c.PeriDataDirectory
 	enc.PeriBroadcast = c.PeriBroadcast
 	enc.PeriPeersIp = c.PeriPeersIp
@@ -258,7 +256,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriMaxTransactionAmount        *int
 		PeriMaxBlockAmount              *int
 		PeriLogFilePath                 *string
-		PeriPioplatPeer                 []string
 		PeriDataDirectory               *string
 		PeriBroadcast                   *bool
 		PeriPeersIp                     []string
@@ -489,9 +486,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.PeriLogFilePath != nil {
 		c.PeriLogFilePath = *dec.PeriLogFilePath
-	}
-	if dec.PeriPioplatPeer != nil {
-		c.PeriPioplatPeer = dec.PeriPioplatPeer
 	}
 	if dec.PeriDataDirectory != nil {
 		c.PeriDataDirectory = *dec.PeriDataDirectory

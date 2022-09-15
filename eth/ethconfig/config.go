@@ -249,7 +249,6 @@ type Config struct {
 	PeriMaxTransactionAmount int      // max count of old transactions in old arrival record
 	PeriMaxBlockAmount       int      // max count of old blocks in old arrival record
 	PeriLogFilePath          string   // peri log file path
-	PeriPioplatPeer          []string // other peri nodes, as known as pioplat project
 	PeriDataDirectory        string   // database to store evicted peers
 	PeriBroadcast            bool     // Flag whether broadcast block to peri peers
 	PeriPeersIp              []string // Peri peers' ip list
