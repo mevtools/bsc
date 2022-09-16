@@ -321,6 +321,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 			}
 		}
 
+		p.handler.peers.lock.RLock()
 		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
 		for id, peer := range p.handler.peers.peers {
 			p.peersSnapShot[id] = peer.Node().URLv4()
@@ -354,6 +355,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 				score: peerAverageDelay,
 			})
 		}
+		p.handler.peers.lock.RUnlock()
 	} else {
 		for _, arrivalTimestamp := range p.txArrivals {
 			/*
@@ -370,6 +372,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 			}
 		}
 
+		p.handler.peers.lock.RLock()
 		// loop through the current peers instead of recorded ones
 		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
 		for id, peer := range p.handler.peers.peers {
@@ -420,6 +423,7 @@ func (p *Peri) getScores() ([]idScore, map[string]bool) {
 
 			scores = append(scores, idScore{id, peerAverageDelay})
 		}
+		p.handler.peers.lock.RUnlock()
 	}
 
 	// Scores are sorted by descending order
