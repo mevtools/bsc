@@ -79,6 +79,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriActive                      bool
 		PeriPeriod                      uint64
 		PeriReplaceRatio                float64
+		PeriBlockNodeRatio              float64
+		PeriTxNodeRatio                 float64
 		PeriMinInbound                  int
 		PeriMaxDelayPenalty             uint64
 		PeriAnnouncePenalty             uint64
@@ -159,6 +161,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriActive = c.PeriActive
 	enc.PeriPeriod = c.PeriPeriod
 	enc.PeriReplaceRatio = c.PeriReplaceRatio
+	enc.PeriBlockNodeRatio = c.PeriBlockNodeRatio
+	enc.PeriTxNodeRatio = c.PeriTxNodeRatio
 	enc.PeriMinInbound = c.PeriMinInbound
 	enc.PeriMaxDelayPenalty = c.PeriMaxDelayPenalty
 	enc.PeriAnnouncePenalty = c.PeriAnnouncePenalty
@@ -243,6 +247,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriActive                      *bool
 		PeriPeriod                      *uint64
 		PeriReplaceRatio                *float64
+		PeriBlockNodeRatio              *float64
+		PeriTxNodeRatio                 *float64
 		PeriMinInbound                  *int
 		PeriMaxDelayPenalty             *uint64
 		PeriAnnouncePenalty             *uint64
@@ -447,6 +453,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.PeriReplaceRatio != nil {
 		c.PeriReplaceRatio = *dec.PeriReplaceRatio
+	}
+	if dec.PeriBlockNodeRatio != nil {
+		c.PeriBlockNodeRatio = *dec.PeriBlockNodeRatio
+	}
+	if dec.PeriTxNodeRatio != nil {
+		c.PeriTxNodeRatio = *dec.PeriTxNodeRatio
 	}
 	if dec.PeriMinInbound != nil {
 		c.PeriMinInbound = *dec.PeriMinInbound

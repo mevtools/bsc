@@ -236,6 +236,8 @@ type Config struct {
 	PeriActive               bool    // global switch of Peri peer eviction policy
 	PeriPeriod               uint64  // period of peer reselection in seconds
 	PeriReplaceRatio         float64 // 0~1, ratio of replaced peers in each epoch
+	PeriBlockNodeRatio       float64 // 0~1, ratio of reserve peers that approach to nodes who broadcast blocks
+	PeriTxNodeRatio          float64 // 0~1, ratio of reserve peers that approach to nodes who broadcast transactions
 	PeriMinInbound           int     //
 	PeriMaxDelayPenalty      uint64  // Maximum delay of a tx recorded at a neighbor in ms
 	PeriAnnouncePenalty      uint64  // The penalty for announce, to encourage receive block body, in ms

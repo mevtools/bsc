@@ -39,6 +39,8 @@ type Peri struct {
 	config           *ethconfig.Config // ethconfig used globally during program execution
 	handler          *handler          // implement handler to blocks and transactions arriving
 	replaceCount     int               // count of replacement during every period
+	blockPeersCount  int               // count of reserving peers which approach to block nodes during every period
+	txsPeerCount     int               // count of reserving peers which approach to transactions nodes during every period
 	maxDelayDuration int64             // max delay duration in nano time
 	announcePenalty  int64
 
@@ -100,6 +102,7 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 		handler:           h,
 		locker:            new(sync.Mutex),
 		replaceCount:      int(math.Round(float64(h.maxPeers) * config.PeriReplaceRatio)),
+		blockPeersCount:   int(math.Round(float64(h.maxPeers) * config.PeriBlockNodeRatio)),
 		maxDelayDuration:  int64(config.PeriMaxDelayPenalty * milli2Nano),
 		announcePenalty:   int64(config.PeriAnnouncePenalty * milli2Nano),
 		approachingMiners: config.PeriApproachMiners,
@@ -114,6 +117,7 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 		blacklist:     make(map[string]bool),
 		fileLogger:    log.New(),
 	}
+	peri.txsPeerCount = h.maxPeers - peri.replaceCount - peri.blockPeersCount
 
 	databasePath := filepath.Join(config.PeriDataDirectory, periNodeDbPath)
 	peri.nodesDb, err = enode.OpenDB(databasePath)
@@ -176,19 +180,34 @@ func (p *Peri) StartPeri() {
 		}
 
 		if saveNodesOnExit {
-			scores, _ := p.getScores()
-			numDrop := p.replaceCount + len(scores) - p.handler.maxPeers
+			blockScores, txScores, _ := p.getScores()
+			var peersReserver = make(map[string]interface{})
+
+			for i := len(blockScores) - 1; i >= len(blockScores)-p.blockPeersCount; i-- {
+				if _, ok := peersReserver[txScores[i].id]; !ok {
+					peersReserver[txScores[i].id] = struct{}{}
+				}
+			}
+			for i := len(txScores) - 1; i >= len(txScores)-p.txsPeerCount; i-- {
+				if _, ok := peersReserver[blockScores[i].id]; !ok {
+					peersReserver[blockScores[i].id] = struct{}{}
+				}
+			}
+			numDrop := len(txScores) - p.blockPeersCount - p.txsPeerCount
 			if numDrop < 0 {
 				numDrop = 0
 			}
-			scores = scores[numDrop:]
-			err = p.nodesDb.StoreInt64([]byte(periNodeCountKey), int64(len(scores)))
+
+			err = p.nodesDb.StoreInt64([]byte(periNodeCountKey), int64(len(peersReserver)))
 			if err != nil {
 				log.Warn("peri store node count failed when exit", "err", err)
 			}
-			for i, element := range scores {
-				enode := p.peersSnapShot[element.id]
+
+			i := 0
+			for id := range peersReserver {
+				enode := p.peersSnapShot[id]
 				err = p.nodesDb.StoreString([]byte(periNodeKeyPrefix+strconv.Itoa(i)), enode)
+				i++
 				if err != nil {
 					log.Warn("peri store enode failed when exit", "err", err)
 				}
@@ -222,7 +241,8 @@ func (p *Peri) recordBlockAnnounces(peer *eth.Peer, hashes []common.Hash, number
 
 	for _, blockAnnouncement := range newBlockAnnouncements {
 		if dist := int64(blockAnnouncement.number) - int64(p.handler.chain.CurrentBlock().NumberU64()); dist < -maxBlockDist {
-			log.Warn("peri already seen this block so skip this new block announcement", "block", blockAnnouncement.number)
+			log.Warn("peri already seen this block so skip this block announcement",
+				"block", blockAnnouncement.number, "peer", peer.Node().IP())
 			continue
 		}
 
@@ -270,7 +290,8 @@ func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash, 
 	for _, txHash := range hashes {
 		if _, stale := p.txOldArrivals[txHash]; stale {
 			// already seen this transaction so skip this new transaction announcement
-			log.Warn("peri already seen this transaction so skip this new transaction announcement", "tx", txHash)
+			log.Warn("peri already seen this transaction so skip this new transaction announcement",
+				"tx", txHash, "peer", peer.Node().IP())
 			continue
 		}
 
@@ -301,144 +322,131 @@ func (p *Peri) recordTransactionBody(peer *eth.Peer, transactions []*types.Trans
 	p.recordTransactionAnnounces(peer, hashs, false)
 }
 
-func (p *Peri) getScores() ([]idScore, map[string]bool) {
+// getScores compute score by blocks receiving timestamp and by txs receiving timestamp
+// it returns two idScore array, the first is blocks score, the second is txs score.
+// it also returns excused peer list which contains peers that connect too late.
+func (p *Peri) getScores() ([]idScore, []idScore, map[string]bool) {
 	var (
-		scores  []idScore
-		excused = make(map[string]bool)
+		blockScores       []idScore
+		transactionScores []idScore
+		excused           = make(map[string]bool)
 
-		latestArrivalTimestamp int64
-		peerBirthTimestamp     int64
-		peerDelayDuration      int64
-		totalDelayDuration     int64
-		peerForwardCount       int
-		peerAverageDelay       float64
+		latestBlockArrivalTimestamp int64
+		latestTxArrivalTimestamp    int64
+		peerBirthTimestamp          int64
+		peerDelayDuration           int64
+		totalDelayDuration          int64
+		peerForwardCount            int
+		peerAverageDelay            float64
 	)
 
-	if p.approachingMiners == true {
-		for _, arrivalTimestamp := range p.blockArrivals {
-			if arrivalTimestamp > latestArrivalTimestamp {
-				latestArrivalTimestamp = arrivalTimestamp
-			}
+	// here is computing block socres
+	for _, arrivalTimestamp := range p.blockArrivals {
+		if arrivalTimestamp > latestBlockArrivalTimestamp {
+			latestBlockArrivalTimestamp = arrivalTimestamp
 		}
-
-		p.handler.peers.lock.RLock()
-		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
-		for id, peer := range p.handler.peers.peers {
-			p.peersSnapShot[id] = peer.Node().URLv4()
-			peerBirthTimestamp = peer.Peer.ConnectedTimestamp
-			for blockAnnouncement, arrivalTimestamp := range p.blockArrivals {
-				if arrivalTimestamp < peerBirthTimestamp {
-					continue
-				}
-
-				arrivalTimestampThisPeer, forwardThisPeer := p.blockArrivalPerPeer[blockAnnouncement][id]
-				peerDelayDuration = arrivalTimestampThisPeer - arrivalTimestamp
-				if forwardThisPeer == false || peerDelayDuration > p.maxDelayDuration {
-					peerDelayDuration = p.maxDelayDuration
-				}
-
-				peerForwardCount += 1
-				totalDelayDuration += peerDelayDuration
-			}
-			if peerForwardCount == 0 {
-				// the peer maybe connect too late, if so, excuse it from computing scores temporarily
-				if peerBirthTimestamp > latestArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*milli2Nano {
-					excused[id] = true
-				}
-				peerAverageDelay = float64(p.maxDelayDuration)
-			} else {
-				peerAverageDelay = float64(totalDelayDuration) / float64(peerForwardCount)
-			}
-
-			scores = append(scores, idScore{
-				id:    id,
-				score: peerAverageDelay,
-			})
-		}
-		p.handler.peers.lock.RUnlock()
-	} else {
-		for _, arrivalTimestamp := range p.txArrivals {
-			/*
-				// check whether transaction is target transaction
-				// currently using a array indicates where it belongs to some sender
-				if p.config.PeriTargeted {
-					if _, isTarget := targetTx[txHash]; !isTarget {
-						continue
-					}
-				}
-			*/
-			if arrivalTimestamp > latestArrivalTimestamp {
-				latestArrivalTimestamp = arrivalTimestamp
-			}
-		}
-
-		p.handler.peers.lock.RLock()
-		// loop through the current peers instead of recorded ones
-		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
-		for id, peer := range p.handler.peers.peers {
-			p.peersSnapShot[id] = peer.Node().URLv4()
-			peerBirthTimestamp = peer.Peer.ConnectedTimestamp
-
-			for tx, arrivalTimestamp := range p.txArrivals {
-				/*
-					if p.config.PeriTargeted {
-						if _, isTarget := targetTx[tx]; !isTarget {
-							continue
-						}
-					}
-				*/
-				if arrivalTimestamp < peerBirthTimestamp {
-					continue
-				}
-
-				arrivalTimestampThisPeer, forwardThisPeer := p.txArrivalPerPeer[tx][id]
-				peerDelayDuration = arrivalTimestampThisPeer - arrivalTimestamp
-				if !forwardThisPeer || peerDelayDuration > p.maxDelayDuration {
-					peerDelayDuration = p.maxDelayDuration
-				}
-				/*
-					else if p.config.PeriTargeted {
-						if !loggy.Config.FlagAllTx {
-							if delay == 0 {
-								loggy.ObserveAll(tx, peer.Node().URLv4(), firstArrival)
-							}
-						} else {
-							loggy.ObserveAll(tx, peer.Node().URLv4(), arrival)
-						}
-					}
-				*/
-				peerForwardCount += 1
-				totalDelayDuration += peerDelayDuration
-			}
-
-			if peerForwardCount == 0 {
-				// the peer maybe connect too late, if so, excuse it from computing scores temporarily
-				if peerBirthTimestamp > latestArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*milli2Nano {
-					excused[id] = true
-				}
-				peerAverageDelay = float64(p.maxDelayDuration)
-			} else {
-				peerAverageDelay = float64(totalDelayDuration) / float64(peerForwardCount)
-			}
-
-			scores = append(scores, idScore{id, peerAverageDelay})
-		}
-		p.handler.peers.lock.RUnlock()
 	}
 
-	// Scores are sorted by descending order
-	sort.Slice(scores, func(i, j int) bool {
-		ndi, ndj := p.isNoDropPeer(scores[i].id), p.isNoDropPeer(scores[j].id)
+	// below is computing transaction scores
+	for _, arrivalTimestamp := range p.txArrivals {
+		if arrivalTimestamp > latestTxArrivalTimestamp {
+			latestTxArrivalTimestamp = arrivalTimestamp
+		}
+	}
+
+	p.handler.peers.lock.RLock()
+	for id, peer := range p.handler.peers.peers {
+		p.peersSnapShot[id] = peer.Node().URLv4()
+		peerBirthTimestamp = peer.Peer.ConnectedTimestamp
+
+		// computing block scores
+		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
+		for blockAnnouncement, arrivalTimestamp := range p.blockArrivals {
+			if arrivalTimestamp < peerBirthTimestamp {
+				continue
+			}
+
+			arrivalTimestampThisPeer, forwardThisPeer := p.blockArrivalPerPeer[blockAnnouncement][id]
+			peerDelayDuration = arrivalTimestampThisPeer - arrivalTimestamp
+			if forwardThisPeer == false || peerDelayDuration > p.maxDelayDuration {
+				peerDelayDuration = p.maxDelayDuration
+			}
+
+			peerForwardCount += 1
+			totalDelayDuration += peerDelayDuration
+		}
+		if peerForwardCount == 0 {
+			// the peer maybe connect too late, if so, excuse it from computing scores temporarily
+			if peerBirthTimestamp > latestBlockArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*milli2Nano {
+				excused[id] = true
+			}
+			peerAverageDelay = float64(p.maxDelayDuration)
+		} else {
+			peerAverageDelay = float64(totalDelayDuration) / float64(peerForwardCount)
+		}
+
+		blockScores = append(blockScores, idScore{
+			id:    id,
+			score: peerAverageDelay,
+		})
+
+		// computing txs scores
+		peerForwardCount, totalDelayDuration, peerAverageDelay = 0, 0, 0.0
+		for tx, arrivalTimestamp := range p.txArrivals {
+			if arrivalTimestamp < peerBirthTimestamp {
+				continue
+			}
+
+			arrivalTimestampThisPeer, forwardThisPeer := p.txArrivalPerPeer[tx][id]
+			peerDelayDuration = arrivalTimestampThisPeer - arrivalTimestamp
+			if !forwardThisPeer || peerDelayDuration > p.maxDelayDuration {
+				peerDelayDuration = p.maxDelayDuration
+			}
+			peerForwardCount += 1
+			totalDelayDuration += peerDelayDuration
+		}
+
+		if peerForwardCount == 0 {
+			// the peer maybe connect too late, if so, excuse it from computing scores temporarily
+			if peerBirthTimestamp > latestTxArrivalTimestamp-p.config.PeriMaxDeliveryTolerance*milli2Nano {
+				excused[id] = true
+			}
+			peerAverageDelay = float64(p.maxDelayDuration)
+		} else {
+			peerAverageDelay = float64(totalDelayDuration) / float64(peerForwardCount)
+		}
+
+		transactionScores = append(transactionScores, idScore{
+			id:    id,
+			score: peerAverageDelay,
+		})
+	}
+	p.handler.peers.lock.RUnlock()
+
+	// scores are sorted by descending order
+	sort.Slice(blockScores, func(i, j int) bool {
+		ndi, ndj := p.isNoDropPeer(blockScores[i].id), p.isNoDropPeer(blockScores[j].id)
 		if ndi && !ndj {
 			return false // give i lower priority when i cannot be dropped
 		} else if ndj && !ndi {
 			return true
 		} else {
-			return scores[i].score > scores[j].score
+			return blockScores[i].score > blockScores[j].score
+		}
+	})
+	sort.Slice(transactionScores, func(i, j int) bool {
+		ndi, ndj := p.isNoDropPeer(transactionScores[i].id), p.isNoDropPeer(transactionScores[j].id)
+		if ndi && !ndj {
+			return false // give i lower priority when i cannot be dropped
+		} else if ndj && !ndi {
+			return true
+		} else {
+			return transactionScores[i].score > transactionScores[j].score
 		}
 	})
 
-	return scores, excused
+	// todo: not sure length of block scores and transaction scores are identical
+	return blockScores, transactionScores, excused
 }
 
 // check if a node is always undroppable (for instance, a predefined no drop ip list)
@@ -497,31 +505,42 @@ func (p *Peri) disconnectByScore() {
 	p.locker.Lock()
 	defer p.locker.Unlock()
 
-	scores, excused := p.getScores()
+	var peersReserver = make(map[string]interface{})
+	if len(p.blockArrivals) == 0 || len(p.txArrivals) == 0 {
+		log.Warn("no block or transactions recorded, peri policy skipped.", "peer count", p.handler.peers.len())
+		return
+	}
+
+	blockScores, txScores, excused := p.getScores()
+
+	for i := len(blockScores) - 1; i >= len(blockScores)-p.blockPeersCount; i-- {
+		if _, ok := peersReserver[txScores[i].id]; !ok {
+			peersReserver[txScores[i].id] = struct{}{}
+		}
+	}
+	for i := len(txScores) - 1; i >= len(txScores)-p.txsPeerCount; i-- {
+		if _, ok := peersReserver[blockScores[i].id]; !ok {
+			peersReserver[blockScores[i].id] = struct{}{}
+		}
+	}
+	// assume length of block scores and transaction scores are identical
+
+	// if current count of peers larger than block peers count plus tx peers count
+	// then drop count of peers to block count + tx count
 
 	// number of peers to drop
-	numDrop := p.replaceCount + len(scores) - p.handler.maxPeers
+	numDrop := len(txScores) - p.blockPeersCount - p.txsPeerCount
 	if numDrop < 0 {
 		numDrop = 0
 	}
 
 	// show logs on console and persistent some information
-	p.summaryStats(scores, excused, numDrop)
-
-	// Check if there is no block or transaction recorded. If so, everyone is excused and skip dropping peers
-	if p.approachingMiners && len(p.blockArrivals) == 0 {
-		log.Warn("no block recorded, peri policy skipped.", "peer count", p.handler.peers.len())
-		return
-	}
-	if p.approachingMiners == false && len(p.txArrivals) == 0 {
-		log.Warn("no transaction recorded, peri policy skipped.", "peer count", p.handler.peers.len())
-		return
-	}
+	p.summaryStats(blockScores, txScores, excused, numDrop)
 
 	log.Info("before dropping during disconnect by score", "count", p.handler.peers.len())
 
-	if !p.config.PeriActive { // Peri is inactive, drop randomly instead; Set ReplaceRatio=0 to disable dropping
-		indices := make([]int, len(scores))
+	if !p.config.PeriActive { // peri is inactive, drop randomly instead; Set ReplaceRatio=0 to disable dropping
+		indices := make([]int, len(txScores))
 		for i := 0; i < len(indices); i++ {
 			indices[i] = i
 		}
@@ -529,16 +548,41 @@ func (p *Peri) disconnectByScore() {
 			indices[i], indices[j] = indices[j], indices[i]
 		})
 		for i := 0; i < numDrop; i++ {
-			id := scores[indices[i]].id
+			id := txScores[indices[i]].id
 			p.handler.removePeer(id)
 			p.handler.unregisterPeer(id)
 		}
-	} else { // Drop nodes, and add them to the blacklist
-		for i := 0; i < numDrop; i++ {
-			id := scores[i].id
-			if _, isExcused := excused[id]; isExcused {
+	} else {
+		// drop in proportion to block peers and transaction peers
+		blockPeerDrop := int(float64(numDrop) * p.config.PeriBlockNodeRatio)
+		txPeerDrop := numDrop - blockPeerDrop
+
+		for i, cnt := 0, 0; cnt < blockPeerDrop; {
+			id := blockScores[i].id
+			i++
+			if _, ok := peersReserver[id]; ok {
 				continue
 			}
+			if _, ok := excused[id]; ok {
+				continue
+			}
+			cnt++
+			// drop nodes, and add them to the blacklist
+			p.blacklist[extractIPFromEnode(p.peersSnapShot[id])] = true
+			p.handler.removePeer(id)
+			p.handler.unregisterPeer(id)
+		}
+		for i, cnt := 0, 0; cnt < txPeerDrop; {
+			id := txScores[i].id
+			i++
+			if _, ok := peersReserver[id]; ok {
+				continue
+			}
+			if _, ok := excused[id]; ok {
+				continue
+			}
+			cnt++
+			// drop nodes, and add them to the blacklist
 			p.blacklist[extractIPFromEnode(p.peersSnapShot[id])] = true
 			p.handler.removePeer(id)
 			p.handler.unregisterPeer(id)
@@ -554,27 +598,29 @@ func extractIPFromEnode(enode string) string {
 	return parts[0]
 }
 
-func (p *Peri) summaryStats(scores []idScore, excused map[string]bool, numDrop int) {
+func (p *Peri) summaryStats(blockScores []idScore, txScores []idScore, excused map[string]bool, numDrop int) {
 	timestamp := time.Now()
 	log.Warn("peri policy is triggered", "timestamp", timestamp)
 	p.fileLogger.Warn("peri policy is triggered", "timestamp", timestamp)
-	blockCount, transactionCount, peerCount := len(p.blockArrivals), len(p.txArrivals), len(scores)
-	if p.approachingMiners == true {
-		log.Warn("Peri policy summary", "count of blocks", blockCount, "count of peers", peerCount, "count of drop", numDrop)
-		p.fileLogger.Warn("Peri policy summary", "count of blocks", blockCount, "count of peers", peerCount, "count of drop", numDrop)
-		if blockCount == 0 {
-			return
-		}
-	} else {
-		log.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
-		p.fileLogger.Warn("Peri policy summary", "count of transactions", transactionCount, "count of peers", peerCount, "count of drop", numDrop)
-		if transactionCount == 0 {
-			return
-		}
+	blockCount, transactionCount := len(p.blockArrivals), len(p.txArrivals)
+
+	log.Warn("Peri policy summary", "count of blocks", blockCount,
+		"count of block score", len(blockScores), "count of drop", numDrop)
+	p.fileLogger.Warn("Peri policy summary", "count of blocks", blockCount,
+		"count of block score", len(blockScores), "count of drop", numDrop)
+
+	log.Warn("Peri policy summary", "count of transactions", transactionCount,
+		"count of tx score", len(txScores), "count of drop", numDrop)
+	p.fileLogger.Warn("Peri policy summary", "count of transactions", transactionCount,
+		"count of tx score", len(txScores), "count of drop", numDrop)
+
+	for _, element := range blockScores {
+		log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "block-score", element.score)
+		p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "block-score", element.score)
 	}
-	for _, element := range scores {
-		log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
-		p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "score", element.score)
+	for _, element := range txScores {
+		log.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "tx-score", element.score)
+		p.fileLogger.Warn("Peri computation score of peers", "enode", p.peersSnapShot[element.id], "tx-score", element.score)
 	}
 }
 
@@ -623,7 +669,7 @@ func (p *Peri) broadcastTransactionsToPioplatPeer(txs []*types.Transaction) {
 				peerIp := ethPeerElement.Node().IP().String()
 				if _, found := p.handler.periPeersIp[peerIp]; found {
 					if ethPeerElement.KnownTransaction(tx.Hash()) == false {
-						ethPeerElement.AsyncSendPooledTransactionHashes([]common.Hash{tx.Hash()})
+						ethPeerElement.AsyncSendTransactions([]common.Hash{tx.Hash()})
 						if p.config.PeriShowTxDelivery {
 							log.Info("deliver transaction to pioplat peer", "tx", tx.Hash(), "ip", peerIp)
 						}
