@@ -139,7 +139,7 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 			}
 		}
 	}
-	p2pServe.AddPeriInitialNodes(nodes)
+	p2pServe.AddPeriInitialNodes(nodes[:h.maxPeers])
 
 	if config.PeriLogFilePath != "" {
 		f, err = os.OpenFile(config.PeriLogFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -180,6 +180,8 @@ func (p *Peri) StartPeri() {
 		}
 
 		if saveNodesOnExit {
+			p.lock()
+			defer p.unlock()
 			blockScores, txScores, _ := p.getScores()
 			var peersReserver = make(map[string]interface{})
 
@@ -290,8 +292,10 @@ func (p *Peri) recordTransactionAnnounces(peer *eth.Peer, hashes []common.Hash, 
 	for _, txHash := range hashes {
 		if _, stale := p.txOldArrivals[txHash]; stale {
 			// already seen this transaction so skip this new transaction announcement
-			log.Warn("peri already seen this transaction so skip this new transaction announcement",
-				"tx", txHash, "peer", peer.Node().IP())
+			if p.config.PeriShowTxDelivery {
+				log.Warn("peri already seen this transaction so skip this new transaction announcement",
+					"tx", txHash, "peer", peer.Node().IP())
+			}
 			continue
 		}
 
