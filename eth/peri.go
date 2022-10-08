@@ -490,9 +490,15 @@ func (p *Peri) resetRecords() {
 		sort.Slice(listArrivals, func(i, j int) bool {
 			return listArrivals[i].arrivalTimestamp < listArrivals[j].arrivalTimestamp
 		})
-
+		
 		// Delete the earliest arrivals
-		for i := 0; i < transactionArrivalReplace; i++ {
+		var n int
+		if len(p.txOldArrivals) < transactionArrivalReplace {
+			n = len(p.txOldArrivals)
+		} else {
+			n = transactionArrivalReplace
+		}
+		for i := 0; i < n; i++ {
 			delete(p.txOldArrivals, listArrivals[i].txHash)
 		}
 	}
