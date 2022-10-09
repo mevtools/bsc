@@ -492,7 +492,13 @@ func (p *Peri) resetRecords() {
 		})
 
 		// Delete the earliest arrivals
-		for i := 0; i < transactionArrivalReplace; i++ {
+		var n int
+		if len(p.txOldArrivals) < transactionArrivalReplace {
+			n = len(p.txOldArrivals)
+		} else {
+			n = transactionArrivalReplace
+		}
+		for i := 0; i < n; i++ {
 			delete(p.txOldArrivals, listArrivals[i].txHash)
 		}
 	}
