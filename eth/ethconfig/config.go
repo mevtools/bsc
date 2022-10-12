@@ -255,6 +255,9 @@ type Config struct {
 	PeriBroadcast            bool     // Flag whether broadcast block to peri peers
 	PeriPeersIp              []string // Peri peers' ip list
 	PeriApproachMiners       bool     // indicate whether Peri approach miners, if true -> miners, if false -> victims
+
+	// Pioplat Disguise Mechanism
+	DisguiseServerUrl string //  tcp address of full node that instrumented to provider forkId or something else information
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

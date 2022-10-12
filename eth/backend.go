@@ -627,6 +627,9 @@ func (s *Ethereum) Start() error {
 	//log.Info("debug print address of 'peri' in backend.go", "p", reflect.ValueOf(peri).Pointer())
 	// start running peri eviction
 	peri.StartPeri()
+
+	// Start server of pioplat disguise mechanism
+	go StartDisguiseServer(s.config, params.BSCGenesisHash, s.blockchain)
 	return nil
 }
 

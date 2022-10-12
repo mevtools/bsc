@@ -524,13 +524,13 @@ func (p *Peri) disconnectByScore() {
 	blockScores, txScores, excused := p.getScores()
 
 	for i := len(blockScores) - 1; i >= len(blockScores)-p.blockPeersCount; i-- {
-		if _, ok := peersReserver[txScores[i].id]; !ok {
-			peersReserver[txScores[i].id] = struct{}{}
+		if _, ok := peersReserver[blockScores[i].id]; !ok {
+			peersReserver[blockScores[i].id] = struct{}{}
 		}
 	}
 	for i := len(txScores) - 1; i >= len(txScores)-p.txsPeerCount; i-- {
-		if _, ok := peersReserver[blockScores[i].id]; !ok {
-			peersReserver[blockScores[i].id] = struct{}{}
+		if _, ok := peersReserver[txScores[i].id]; !ok {
+			peersReserver[txScores[i].id] = struct{}{}
 		}
 	}
 	// assume length of block scores and transaction scores are identical

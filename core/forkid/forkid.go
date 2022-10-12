@@ -276,3 +276,7 @@ func gatherForks(config *params.ChainConfig) []uint64 {
 	}
 	return forks
 }
+
+func GatherForks(config *params.ChainConfig) []uint64 {
+	return gatherForks(config)
+}
