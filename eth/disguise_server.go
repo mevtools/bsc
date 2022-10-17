@@ -3,14 +3,15 @@ package eth
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
+	"sync/atomic"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"net"
-	"sync/atomic"
 )
 
 const (
@@ -42,6 +43,7 @@ func StartDisguiseServer(ethConfig *ethconfig.Config, genesisHash common.Hash, c
 		con      net.Conn
 		err      error
 		listener net.Listener
+		tcpAddr  *net.TCPAddr
 	)
 	srv := &DisguiseServer{}
 	srv.forks = forkid.GatherForks(chain.Config())
@@ -50,7 +52,11 @@ func StartDisguiseServer(ethConfig *ethconfig.Config, genesisHash common.Hash, c
 		return chain.CurrentHeader().Number.Uint64()
 	}
 
-	listener, err = net.Listen("tcp", ethConfig.DisguiseServerUrl)
+	tcpAddr, err = net.ResolveTCPAddr("tcp", ethConfig.DisguiseServerUrl)
+	if err != nil {
+		log.Crit("invalid listen tcp address", "reason", err)
+	}
+	listener, err = net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
 		log.Crit("listen on disguise server failed", "reason", err)
 	}
@@ -121,7 +127,7 @@ func (ds *DisguiseServer) serveDisguiseClient(con net.Conn) {
 			// 12 bytes: command of message
 			// 8 bytes: block number (little endian)
 			copy(buffer, adjustLeft([]byte(GetBlockNumber), 12))
-			binary.LittleEndian.PutUint64(buffer[12+4+32:], ds.headerFn())
+			binary.LittleEndian.PutUint64(buffer[12:], ds.headerFn())
 			_, err = con.Write(buffer[:12+8])
 			if err != nil {
 				log.Warn("send message to disguise client failed", "reason", err)
