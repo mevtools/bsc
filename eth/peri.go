@@ -119,6 +119,10 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 	}
 	peri.txsPeerCount = h.maxPeers - peri.replaceCount - peri.blockPeersCount
 
+	for _, ip := range config.PeriNoPeerIPList {
+		peri.blacklist[ip] = true
+	}
+
 	databasePath := filepath.Join(config.PeriDataDirectory, periNodeDbPath)
 	peri.nodesDb, err = enode.OpenDB(databasePath)
 	if err != nil {
@@ -185,12 +189,12 @@ func (p *Peri) StartPeri() {
 			blockScores, txScores, _ := p.getScores()
 			var peersReserver = make(map[string]interface{})
 
-			for i := len(blockScores) - 1; i >= len(blockScores)-p.blockPeersCount; i-- {
+			for i := len(blockScores) - 1; i >= 0 && i >= len(blockScores)-p.blockPeersCount; i-- {
 				if _, ok := peersReserver[txScores[i].id]; !ok {
 					peersReserver[txScores[i].id] = struct{}{}
 				}
 			}
-			for i := len(txScores) - 1; i >= len(txScores)-p.txsPeerCount; i-- {
+			for i := len(txScores) - 1; i >= 0 && i >= len(txScores)-p.txsPeerCount; i-- {
 				if _, ok := peersReserver[blockScores[i].id]; !ok {
 					peersReserver[blockScores[i].id] = struct{}{}
 				}
