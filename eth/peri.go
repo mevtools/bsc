@@ -575,7 +575,7 @@ func (p *Peri) disconnectByScore() {
 		blockPeerDrop := int(float64(numDrop) * p.config.PeriBlockNodeRatio)
 		txPeerDrop := numDrop - blockPeerDrop
 
-		for i, cnt := 0, 0; cnt < blockPeerDrop; {
+		for i, cnt := 0, 0; i < len(blockScores) && cnt < blockPeerDrop; {
 			id := blockScores[i].id
 			i++
 			if _, ok := peersReserver[id]; ok {
@@ -590,7 +590,7 @@ func (p *Peri) disconnectByScore() {
 			p.handler.removePeer(id)
 			p.handler.unregisterPeer(id)
 		}
-		for i, cnt := 0, 0; cnt < txPeerDrop; {
+		for i, cnt := 0, 0; i < len(txScores) && cnt < txPeerDrop; {
 			id := txScores[i].id
 			i++
 			if _, ok := peersReserver[id]; ok {
