@@ -170,22 +170,26 @@ func (api *API) blockByNumberAndHash(ctx context.Context, number rpc.BlockNumber
 // TraceConfig holds extra parameters to trace functions.
 type TraceConfig struct {
 	*logger.Config
-	NestedTraceOutput bool // Returns the trace output JSON nested under the trace name key. This allows full Parity compatibility to be achieved.
+	// Config specific to given tracer. Note struct logger
+	// config are historically embedded in main object.
+	TracerConfig      json.RawMessage
 	Tracer            *string
 	Timeout           *string
 	Reexec            *uint64
-	// Config specific to given tracer. Note struct logger
-	// config are historically embedded in main object.
-	TracerConfig json.RawMessage
+	NestedTraceOutput bool // Returns the trace output JSON nested under the trace name key. This allows full Parity compatibility to be achieved.
 }
 
 // TraceCallConfig is the config for traceCall API. It holds one more
 // field to override the state for tracing.
 type TraceCallConfig struct {
-	StateOverrides    *ethapi.StateOverride
-	BlockOverrides    *ethapi.BlockOverrides
 	NestedTraceOutput bool // Returns the trace output JSON nested under the trace name key. This allows full Parity compatibility to be achieved.
 	TraceConfig
+	*logger.Config
+	Tracer         *string
+	Timeout        *string
+	Reexec         *uint64
+	StateOverrides *ethapi.StateOverride
+	BlockOverrides *ethapi.BlockOverrides
 }
 
 // StdTraceConfig holds extra parameters to standard-json trace functions.
