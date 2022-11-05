@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethstats"
-	"github.com/ethereum/go-ethereum/exinternal/debug"
+	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -133,7 +133,7 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 		Name:        clientIdentifier,
 		Version:     params.VersionWithMeta,
 		DataDir:     datadir,
-		KeyStoreDir: filepath.Join(datadir, "keystore"), // Mobile should never use exinternal keystores!
+		KeyStoreDir: filepath.Join(datadir, "keystore"), // Mobile should never use internal keystores!
 		P2P: p2p.Config{
 			NoDiscovery:      true,
 			DiscoveryV5:      true,
@@ -180,7 +180,7 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 	return &Node{rawStack}, nil
 }
 
-// Close terminates a running node along with all it's services, tearing exinternal state
+// Close terminates a running node along with all it's services, tearing internal state
 // down. It is not possible to restart a closed node.
 func (n *Node) Close() error {
 	return n.node.Close()

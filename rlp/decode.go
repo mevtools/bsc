@@ -46,7 +46,7 @@ var (
 	ErrValueTooLarge    = errors.New("rlp: value size exceeds available input length")
 	ErrMoreThanOneValue = errors.New("rlp: input contains more than one value")
 
-	// exinternal errors
+	// internal errors
 	errNotInList     = errors.New("rlp: call of ListEnd outside of any list")
 	errNotAtEOL      = errors.New("rlp: call of ListEnd not positioned at EOL")
 	errUintOverflow  = errors.New("rlp: uint overflow")
@@ -549,7 +549,7 @@ type ByteReader interface {
 // Stream can be used for piecemeal decoding of an input stream. This
 // is useful if the input is very large or if the decoding rules for a
 // type depend on the input structure. Stream does not keep an
-// exinternal buffer. After decoding a value, the input reader will be
+// internal buffer. After decoding a value, the input reader will be
 // positioned just before the type information for the next value.
 //
 // When decoding a list and the input position reaches the declared

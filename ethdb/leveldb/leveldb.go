@@ -83,7 +83,7 @@ type Database struct {
 }
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
-// metrics reporting should use for surfacing exinternal stats.
+// metrics reporting should use for surfacing internal stats.
 func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
 	return NewCustom(file, namespace, func(options *opt.Options) {
 		// Ensure we have some minimal caching and file guarantees
@@ -104,7 +104,7 @@ func New(file string, cache int, handles int, namespace string, readonly bool) (
 }
 
 // NewCustom returns a wrapped LevelDB object. The namespace is the prefix that the
-// metrics reporting should use for surfacing exinternal stats.
+// metrics reporting should use for surfacing internal stats.
 // The customize function allows the caller to modify the leveldb options.
 func NewCustom(file string, namespace string, customize func(options *opt.Options)) (*Database, error) {
 	options := configureOptions(customize)
@@ -228,7 +228,7 @@ func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
 	return db.db.NewIterator(bytesPrefixRange(prefix, start), nil)
 }
 
-// Stat returns a particular exinternal stat of the database.
+// Stat returns a particular internal stat of the database.
 func (db *Database) Stat(property string) (string, error) {
 	return db.db.GetProperty(property)
 }
@@ -249,7 +249,7 @@ func (db *Database) Path() string {
 	return db.fn
 }
 
-// meter periodically retrieves exinternal leveldb counters and reports them to
+// meter periodically retrieves internal leveldb counters and reports them to
 // the metrics subsystem.
 //
 // This is how a LevelDB stats table looks like (currently):

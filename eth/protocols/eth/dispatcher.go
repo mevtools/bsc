@@ -59,7 +59,7 @@ type Request struct {
 // remote peer about the cancellation, this method notifies the dispatcher to
 // discard any late responses.
 func (r *Request) Close() error {
-	if r.peer == nil { // Tests mock out the dispatcher, skip exinternal cancellation
+	if r.peer == nil { // Tests mock out the dispatcher, skip internal cancellation
 		return nil
 	}
 	cancelOp := &cancel{

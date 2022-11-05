@@ -328,7 +328,7 @@ func (vt *ValueTracker) saveToDb() {
 }
 
 // Stop saves the value tracker's state and each loaded node's individual state and
-// returns after shutting the exinternal goroutines down.
+// returns after shutting the internal goroutines down.
 func (vt *ValueTracker) Stop() {
 	quit := make(chan struct{})
 	vt.quit <- quit

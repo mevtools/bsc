@@ -74,6 +74,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	case *eth.NewBlockPacket:
 		if peri != nil {
 			peri.recordBlockBody(peer, packet.Block)
+			//peri.broadcastBlockToPioplatPeer(peer, packet.Block, packet.TD)
 		}
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
 
@@ -86,12 +87,14 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	case *eth.TransactionsPacket:
 		if peri != nil {
 			peri.recordTransactionBody(peer, *packet)
+			//peri.broadcastTransactionsToPioplatPeer(*packet)
 		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, false)
 
 	case *eth.PooledTransactionsPacket:
 		if peri != nil {
 			peri.recordTransactionBody(peer, *packet)
+			//peri.broadcastTransactionsToPioplatPeer(*packet)
 		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 	default:

@@ -16,7 +16,7 @@
 
 
 // callFrameTracer uses the new call frame tracing methods to report useful information
-// about exinternal messages of a transaction.
+// about internal messages of a transaction.
 {
 	callstack: [{}],
 	fault: function(log, db) {},

@@ -429,7 +429,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 			snapshots.Disable()
 		}
 	}
-	// Reset the queue, peer set and wake channels to clean any exinternal leftover state
+	// Reset the queue, peer set and wake channels to clean any internal leftover state
 	d.queue.Reset(blockCacheMaxItems, blockCacheInitialItems)
 	d.peers.Reset()
 

@@ -186,7 +186,7 @@ func NewTxFetcher(hasTx func(common.Hash) bool, addTxs func([]*types.Transaction
 }
 
 // NewTxFetcherForTests is a testing method to mock out the realtime clock with
-// a simulated version and the exinternal randomness with a deterministic one.
+// a simulated version and the internal randomness with a deterministic one.
 func NewTxFetcherForTests(
 	hasTx func(common.Hash) bool, addTxs func([]*types.Transaction) []error, fetchTxs func(string, []common.Hash) error,
 	clock mclock.Clock, rand *mrand.Rand) *TxFetcher {
@@ -221,7 +221,7 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	// Skip any transaction announcements that we already know of, or that we've
 	// previously marked as cheap and discarded. This check is of course racey,
 	// because multiple concurrent notifies will still manage to pass it, but it's
-	// still valuable to check here because it runs concurrent  to the exinternal
+	// still valuable to check here because it runs concurrent  to the internal
 	// loop, so anything caught here is time saved internally.
 	var (
 		unknowns               = make([]common.Hash, 0, len(hashes))
@@ -242,7 +242,7 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	txAnnounceKnownMeter.Mark(duplicate)
 	txAnnounceUnderpricedMeter.Mark(underpriced)
 
-	// If anything's left to announce, push it into the exinternal loop
+	// If anything's left to announce, push it into the internal loop
 	if len(unknowns) == 0 {
 		return nil
 	}
@@ -320,7 +320,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 	}
 }
 
-// Drop should be called when a peer disconnects. It cleans up all the exinternal
+// Drop should be called when a peer disconnects. It cleans up all the internal
 // data structures of the given node.
 func (f *TxFetcher) Drop(peer string) error {
 	select {
@@ -521,7 +521,7 @@ func (f *TxFetcher) loop() {
 
 		case delivery := <-f.cleanup:
 			// Independent if the delivery was direct or broadcast, remove all
-			// traces of the hash from exinternal trackers
+			// traces of the hash from internal trackers
 			for _, hash := range delivery.hashes {
 				if _, ok := f.waitlist[hash]; ok {
 					for peer, txset := range f.waitslots {

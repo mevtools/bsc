@@ -88,7 +88,7 @@ func randomStorageSet(accounts []string, hashes [][]string, nilStorage [][]strin
 
 // Tests that if a disk layer becomes stale, no active external references will
 // be returned with junk data. This version of the test flattens every diff layer
-// to check exinternal corner case around the bottom-most memory accumulator.
+// to check internal corner case around the bottom-most memory accumulator.
 func TestDiskLayerExternalInvalidationFullFlatten(t *testing.T) {
 	// Create an empty base layer and a snapshot tree out of it
 	base := &diskLayer{

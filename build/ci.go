@@ -60,7 +60,7 @@ import (
 
 	"github.com/cespare/cp"
 	"github.com/ethereum/go-ethereum/crypto/signify"
-	"github.com/ethereum/go-ethereum/exinternal/build"
+	"github.com/ethereum/go-ethereum/internal/build"
 	"github.com/ethereum/go-ethereum/params"
 )
 

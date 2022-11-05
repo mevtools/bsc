@@ -30,7 +30,7 @@ const basketFactor = 1000000 // reference basket amount and value scale factor
 // up by basketFactor because of the exponential expiration of long-term statistical data.
 // Values are scaled so that the sum of all amounts and the sum of all values are equal.
 //
-// reqValues represent the exinternal relative value estimates for each request type and are
+// reqValues represent the internal relative value estimates for each request type and are
 // calculated as value / amount. The average reqValue of all used requests is 1.
 // In other words: SUM(refBasket[type].amount * reqValue[type]) = SUM(refBasket[type].amount)
 type referenceBasket struct {

@@ -96,7 +96,7 @@ func NewManager(config *Config, backends ...Backend) *Manager {
 	return am
 }
 
-// Close terminates the account manager's exinternal notification processes.
+// Close terminates the account manager's internal notification processes.
 func (am *Manager) Close() error {
 	errc := make(chan error)
 	am.quit <- errc
