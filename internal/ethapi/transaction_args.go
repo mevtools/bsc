@@ -121,7 +121,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 			}
 		}
 	} else {
-		// Both maxPriorityfee and maxFee set by caller. Sanity-check their exinternal relation
+		// Both maxPriorityfee and maxFee set by caller. Sanity-check their internal relation
 		if args.MaxFeePerGas.ToInt().Cmp(args.MaxPriorityFeePerGas.ToInt()) < 0 {
 			return fmt.Errorf("maxFeePerGas (%v) < maxPriorityFeePerGas (%v)", args.MaxFeePerGas, args.MaxPriorityFeePerGas)
 		}

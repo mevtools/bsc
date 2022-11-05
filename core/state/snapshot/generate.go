@@ -610,7 +610,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			snapAccountWriteCounter.Inc(time.Since(start).Nanoseconds())
 			return nil
 		}
-		// Retrieve the current account and flatten it into the exinternal format
+		// Retrieve the current account and flatten it into the internal format
 		var acc struct {
 			Nonce    uint64
 			Balance  *big.Int
@@ -718,9 +718,9 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 	// Global loop for regerating the entire state trie + all layered storage tries.
 	for {
 		exhausted, last, err := dl.generateRange(dl.root, rawdb.SnapshotAccountPrefix, "account", accOrigin, accountRange, stats, onAccount, FullAccountRLP)
-		// The procedure it aborted, either by external signal or exinternal error
+		// The procedure it aborted, either by external signal or internal error
 		if err != nil {
-			if abort == nil { // aborted by exinternal error, wait the signal
+			if abort == nil { // aborted by internal error, wait the signal
 				abort = <-dl.genAbort
 			}
 			abort <- stats

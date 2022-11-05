@@ -78,7 +78,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		//log.Warn("handler new block body packet", "number", fmt.Sprint(packet.Block.Number()), "peer", peer)
 		if peri != nil {
 			peri.recordBlockBody(peer, packet.Block)
-			peri.broadcastBlockToPioplatPeer(peer, packet.Block, packet.TD)
+			//peri.broadcastBlockToPioplatPeer(peer, packet.Block, packet.TD)
 		}
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
 
@@ -95,7 +95,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		//log.Warn("handler transaction packet", "hash", fmt.Sprint(*packet))
 		if peri != nil {
 			peri.recordTransactionBody(peer, *packet)
-			peri.broadcastTransactionsToPioplatPeer(*packet)
+			//peri.broadcastTransactionsToPioplatPeer(*packet)
 		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, false)
 
@@ -104,7 +104,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		//log.Warn("handler pooled transactions", "hash", fmt.Sprint(*packet))
 		if peri != nil {
 			peri.recordTransactionBody(peer, *packet)
-			peri.broadcastTransactionsToPioplatPeer(*packet)
+			//peri.broadcastTransactionsToPioplatPeer(*packet)
 		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 	default:

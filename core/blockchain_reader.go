@@ -31,19 +31,19 @@ import (
 )
 
 // CurrentHeader retrieves the current head header of the canonical chain. The
-// header is retrieved from the HeaderChain's exinternal cache.
+// header is retrieved from the HeaderChain's internal cache.
 func (bc *BlockChain) CurrentHeader() *types.Header {
 	return bc.hc.CurrentHeader()
 }
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
-// block is retrieved from the blockchain's exinternal cache.
+// block is retrieved from the blockchain's internal cache.
 func (bc *BlockChain) CurrentBlock() *types.Block {
 	return bc.currentBlock.Load().(*types.Block)
 }
 
 // CurrentFastBlock retrieves the current fast-sync head block of the canonical
-// chain. The block is retrieved from the blockchain's exinternal cache.
+// chain. The block is retrieved from the blockchain's internal cache.
 func (bc *BlockChain) CurrentFastBlock() *types.Block {
 	return bc.currentFastBlock.Load().(*types.Block)
 }

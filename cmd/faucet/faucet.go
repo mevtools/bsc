@@ -174,7 +174,7 @@ func main() {
 	if err != nil {
 		log.Crit("Failed to parse genesis config", "err", err)
 	}
-	// Convert the bootnodes to exinternal enode representations
+	// Convert the bootnodes to internal enode representations
 	var enodes []*enode.Node
 	for _, boot := range strings.Split(*bootFlag, ",") {
 		if url, err := enode.Parse(enode.ValidSchemes, boot); err == nil {

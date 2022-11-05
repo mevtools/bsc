@@ -291,7 +291,7 @@ func (h *httpServer) enableRPC(apis []rpc.API, config httpConfig) error {
 	return nil
 }
 
-// disableRPC stops the HTTP RPC handler. This is exinternal, the caller must hold h.mu.
+// disableRPC stops the HTTP RPC handler. This is internal, the caller must hold h.mu.
 func (h *httpServer) disableRPC() bool {
 	handler := h.httpHandler.Load().(*rpcHandler)
 	if handler != nil {
@@ -335,7 +335,7 @@ func (h *httpServer) stopWS() {
 	}
 }
 
-// disableWS disables the WebSocket handler. This is exinternal, the caller must hold h.mu.
+// disableWS disables the WebSocket handler. This is internal, the caller must hold h.mu.
 func (h *httpServer) disableWS() bool {
 	ws := h.wsHandler.Load().(*rpcHandler)
 	if ws != nil {

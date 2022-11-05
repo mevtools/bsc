@@ -496,7 +496,7 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 }
 
 // Tests that out of two transactions, if one is missing and the last is
-// delivered, the peer gets properly cleaned out from the exinternal state.
+// delivered, the peer gets properly cleaned out from the internal state.
 func TestTransactionFetcherMissingCleanup(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -959,7 +959,7 @@ func TestTransactionFetcherUnderpricedDoSProtection(t *testing.T) {
 	})
 }
 
-// Tests that unexpected deliveries don't corrupt the exinternal state.
+// Tests that unexpected deliveries don't corrupt the internal state.
 func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -1011,7 +1011,7 @@ func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 	})
 }
 
-// Tests that dropping a peer cleans out all exinternal data structures in all the
+// Tests that dropping a peer cleans out all internal data structures in all the
 // live or danglng stages.
 func TestTransactionFetcherDrop(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
@@ -1507,7 +1507,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 		default:
 			t.Fatalf("step %d: unknown step type %T", i, step)
 		}
-		// After every step, cross validate the exinternal uniqueness invariants
+		// After every step, cross validate the internal uniqueness invariants
 		// between stage one and stage two.
 		for hash := range fetcher.waittime {
 			if _, ok := fetcher.announced[hash]; ok {

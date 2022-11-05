@@ -25,7 +25,7 @@ import (
 )
 
 // hasher is a type used for the trie Hash operation. A hasher has some
-// exinternal preallocated temp space
+// internal preallocated temp space
 type hasher struct {
 	sha      crypto.KeccakState
 	tmp      []byte

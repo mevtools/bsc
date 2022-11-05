@@ -110,7 +110,7 @@ type Trie interface {
 	// can be used even if the trie doesn't have one.
 	Hash() common.Hash
 
-	// Commit writes all nodes to the trie's memory database, tracking the exinternal
+	// Commit writes all nodes to the trie's memory database, tracking the internal
 	// and external (for account tries) references.
 	Commit(onleaf trie.LeafCallback) (common.Hash, int, error)
 

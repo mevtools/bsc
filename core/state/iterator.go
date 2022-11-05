@@ -41,7 +41,7 @@ type NodeIterator struct {
 	Hash   common.Hash // Hash of the current entry being iterated (nil if not standalone)
 	Parent common.Hash // Hash of the first full ancestor node (nil if current is the root)
 
-	Error error // Failure set in case of an exinternal error in the iterator
+	Error error // Failure set in case of an internal error in the iterator
 }
 
 // NewNodeIterator creates an post-order state node iterator.
@@ -52,7 +52,7 @@ func NewNodeIterator(state *StateDB) *NodeIterator {
 }
 
 // Next moves the iterator to the next node, returning whether there are any
-// further nodes. In case of an exinternal error this method returns false and
+// further nodes. In case of an internal error this method returns false and
 // sets the Error field to the encountered failure.
 func (it *NodeIterator) Next() bool {
 	// If the iterator failed previously, don't do anything
@@ -100,7 +100,7 @@ func (it *NodeIterator) step() error {
 		it.state, it.stateIt = nil, nil
 		return nil
 	}
-	// If the state trie node is an exinternal entry, leave as is
+	// If the state trie node is an internal entry, leave as is
 	if !it.stateIt.Leaf() {
 		return nil
 	}

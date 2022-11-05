@@ -522,7 +522,7 @@ func (t *Trie) Hash() common.Hash {
 	return common.BytesToHash(hash.(hashNode))
 }
 
-// Commit writes all nodes to the trie's memory database, tracking the exinternal
+// Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
 func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, int, error) {
 	if t.db == nil {
@@ -582,7 +582,7 @@ func (t *Trie) hashRoot() (node, node, error) {
 	return hashed, cached, nil
 }
 
-// Reset drops the referenced root node and cleans all exinternal state.
+// Reset drops the referenced root node and cleans all internal state.
 func (t *Trie) Reset() {
 	t.root = nil
 	t.unhashed = 0

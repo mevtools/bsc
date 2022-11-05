@@ -507,7 +507,7 @@ func TestCopyOfCopy(t *testing.T) {
 	}
 }
 
-// Tests a regression where committing a copy lost some exinternal meta information,
+// Tests a regression where committing a copy lost some internal meta information,
 // leading to corrupted subsequent copies.
 //
 // See https://github.com/ethereum/go-ethereum/issues/20106.
@@ -581,7 +581,7 @@ func TestCopyCommitCopy(t *testing.T) {
 	}
 }
 
-// Tests a regression where committing a copy lost some exinternal meta information,
+// Tests a regression where committing a copy lost some internal meta information,
 // leading to corrupted subsequent copies.
 //
 // See https://github.com/ethereum/go-ethereum/issues/20106.

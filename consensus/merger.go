@@ -34,7 +34,7 @@ type transitionStatus struct {
 	EnteredPoS bool // The flag is set when the first FinalisedBlock message received
 }
 
-// Merger is an exinternal help structure used to track the eth1/2 transition status.
+// Merger is an internal help structure used to track the eth1/2 transition status.
 // It's a common structure can be used in both full node and light client.
 type Merger struct {
 	db     ethdb.KeyValueStore

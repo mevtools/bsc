@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-// Tests that HD derivation paths can be correctly parsed into our exinternal binary
+// Tests that HD derivation paths can be correctly parsed into our internal binary
 // representation.
 func TestHDPathParsing(t *testing.T) {
 	tests := []struct {

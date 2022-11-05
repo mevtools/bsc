@@ -28,7 +28,7 @@ import (
 // holds type information (inputs) about the yielded output. Anonymous events
 // don't get the signature canonical representation as the first LOG topic.
 type Event struct {
-	// Name is the event name used for exinternal representation. It's derived from
+	// Name is the event name used for internal representation. It's derived from
 	// the raw name and a suffix will be added in the case of a event overload.
 	//
 	// e.g.

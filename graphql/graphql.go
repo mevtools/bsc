@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/filters"
-	"github.com/ethereum/go-ethereum/exinternal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -186,7 +186,7 @@ type Transaction struct {
 	index   uint64
 }
 
-// resolve returns the exinternal transaction object, fetching it if needed.
+// resolve returns the internal transaction object, fetching it if needed.
 func (t *Transaction) resolve(ctx context.Context) (*types.Transaction, error) {
 	if t.tx == nil {
 		// Try to return an already finalized transaction
@@ -499,7 +499,7 @@ type Block struct {
 	receipts     []*types.Receipt
 }
 
-// resolve returns the exinternal Block object representing this block, fetching
+// resolve returns the internal Block object representing this block, fetching
 // it if necessary.
 func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 	if b.block != nil {
@@ -520,7 +520,7 @@ func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 	return b.block, err
 }
 
-// resolveHeader returns the exinternal Header object for this block, fetching it
+// resolveHeader returns the internal Header object for this block, fetching it
 // if necessary. Call this function instead of `resolve` unless you need the
 // additional data (transactions and uncles).
 func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
@@ -1186,7 +1186,7 @@ type FilterCriteria struct {
 }
 
 func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria }) ([]*Log, error) {
-	// Convert the RPC block numbers into exinternal representations
+	// Convert the RPC block numbers into internal representations
 	begin := rpc.LatestBlockNumber.Int64()
 	if args.Filter.FromBlock != nil {
 		begin = int64(*args.Filter.FromBlock)

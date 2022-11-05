@@ -291,7 +291,7 @@ func (t *Trackers) MedianRoundTrip() time.Duration {
 	return t.medianRoundTrip()
 }
 
-// medianRoundTrip is the exinternal lockless version of MedianRoundTrip to be used
+// medianRoundTrip is the internal lockless version of MedianRoundTrip to be used
 // by the QoS tuner.
 func (t *Trackers) medianRoundTrip() time.Duration {
 	// Gather all the currently measured round trip times
@@ -330,7 +330,7 @@ func (t *Trackers) MeanCapacities() map[uint64]float64 {
 	return t.meanCapacities()
 }
 
-// meanCapacities is the exinternal lockless version of MeanCapacities used for
+// meanCapacities is the internal lockless version of MeanCapacities used for
 // debug logging.
 func (t *Trackers) meanCapacities() map[uint64]float64 {
 	capacities := make(map[uint64]float64)
@@ -353,7 +353,7 @@ func (t *Trackers) meanCapacities() map[uint64]float64 {
 // for any RTT. The goal is to gravitate towards smaller RTTs instead of large
 // messages, to result in a stabler download stream.
 func (t *Trackers) TargetRoundTrip() time.Duration {
-	// Recalculate the exinternal caches if it's been a while
+	// Recalculate the internal caches if it's been a while
 	t.tune()
 
 	// Caches surely recent, return target roundtrip
@@ -368,7 +368,7 @@ func (t *Trackers) TargetRoundTrip() time.Duration {
 // consideration the tracker's confidence in said roundtrip and scales it
 // accordingly. The final value is capped to avoid runaway requests.
 func (t *Trackers) TargetTimeout() time.Duration {
-	// Recalculate the exinternal caches if it's been a while
+	// Recalculate the internal caches if it's been a while
 	t.tune()
 
 	// Caches surely recent, return target timeout
@@ -378,7 +378,7 @@ func (t *Trackers) TargetTimeout() time.Duration {
 	return t.targetTimeout()
 }
 
-// targetTimeout is the exinternal lockless version of TargetTimeout to be used
+// targetTimeout is the internal lockless version of TargetTimeout to be used
 // during QoS tuning.
 func (t *Trackers) targetTimeout() time.Duration {
 	timeout := time.Duration(ttlScaling * float64(t.roundtrip) / t.confidence)
