@@ -101,7 +101,7 @@ type wallet struct {
 	// to communicate, just read some state (e.g. list the accounts).
 	//
 	// As such, a hardware wallet needs two locks to function correctly. A state
-	// lock can be used to protect the wallet's software-side exinternal state, which
+	// lock can be used to protect the wallet's software-side internal state, which
 	// must not be held exclusively during hardware communication. A communication
 	// lock can be used to achieve exclusive access to the device itself, this one
 	// however should allow "skipping" waiting for operations that might want to
@@ -262,7 +262,7 @@ func (w *wallet) Close() error {
 	return derr
 }
 
-// close is the exinternal wallet closer that terminates the USB connection and
+// close is the internal wallet closer that terminates the USB connection and
 // resets all the fields to their defaults.
 //
 // Note, close assumes the state lock is held!

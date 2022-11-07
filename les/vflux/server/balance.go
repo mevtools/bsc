@@ -158,7 +158,7 @@ func (b *balance) addValue(now mclock.AbsTime, amount int64, pos bool, force boo
 	return old, val.Value(offset), net, nil
 }
 
-// setValue sets the exinternal balance amount to the given values. Returns the
+// setValue sets the internal balance amount to the given values. Returns the
 // error if the given value is too large.
 func (b *balance) setValue(now mclock.AbsTime, pos uint64, neg uint64) error {
 	if pos > maxBalance || neg > maxBalance {

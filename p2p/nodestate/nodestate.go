@@ -354,7 +354,7 @@ func NewNodeStateMachine(db ethdb.KeyValueStore, dbKey []byte, clock mclock.Cloc
 	return ns
 }
 
-// stateMask checks whether the set of flags belongs to the same setup and returns its exinternal bit mask
+// stateMask checks whether the set of flags belongs to the same setup and returns its internal bit mask
 func (ns *NodeStateMachine) stateMask(flags Flags) bitMask {
 	if flags.setup != ns.setup && flags.mask != 0 {
 		panic("Node state flags belong to a different setup")
@@ -362,7 +362,7 @@ func (ns *NodeStateMachine) stateMask(flags Flags) bitMask {
 	return flags.mask
 }
 
-// fieldIndex checks whether the field belongs to the same setup and returns its exinternal index
+// fieldIndex checks whether the field belongs to the same setup and returns its internal index
 func (ns *NodeStateMachine) fieldIndex(field Field) int {
 	if field.setup != ns.setup {
 		panic("Node field belongs to a different setup")

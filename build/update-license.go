@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+//go:build none
 // +build none
 
 /*
@@ -64,14 +65,14 @@ var (
 		"vendor/", "tests/testdata/", "build/",
 
 		// don't relicense vendored sources
-		"cmd/exinternal/browser",
+		"cmd/internal/browser",
 		"common/bitutil/bitutil",
 		"common/prque/",
 		"consensus/ethash/xor.go",
 		"crypto/bn256/",
 		"crypto/ecies/",
 		"graphql/graphiql.go",
-		"exinternal/jsre/deps",
+		"internal/jsre/deps",
 		"log/",
 		"metrics/",
 		"signer/rules/deps",

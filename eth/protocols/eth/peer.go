@@ -93,7 +93,7 @@ type Peer struct {
 
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
-	lock   sync.RWMutex  // Mutex protecting the exinternal fields
+	lock   sync.RWMutex  // Mutex protecting the internal fields
 
 	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
 	ConnectedTimestamp int64

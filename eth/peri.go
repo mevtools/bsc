@@ -29,11 +29,23 @@ const (
 	milli2Nano                = 1000000
 	transactionArrivalReplace = 30000
 	enodeSplitIndex           = 137
-	periNodeDbPath            = "peri_nodes"
+	perDbPath                 = "peri_nodes"
 	periNodeCountKey          = "nodes_count"
+	periBlocklistCountKey     = "blocklist_count"
+	periBlockIpKeyPrefix      = "b_ip_"
+	periBlockTimeKeyPrefix    = "b_time_"
+	periBlockExpireKeyPrefix  = "b_unix_"
 	periNodeKeyPrefix         = "n_"
-	maxBlockDist              = 32 // Maximum allowed distance from the chain head to block received
+	maxBlockDist              = 32                  // Maximum allowed distance from the chain head to block received
+	maxBlockExpiredTime       = 30 * 24 * time.Hour // Maximum block expired duration, default a month
 )
+
+// item in expired blocklist
+type blockItem struct {
+	ip          string
+	count       int64
+	expiredTime time.Time
+}
 
 type Peri struct {
 	config           *ethconfig.Config // ethconfig used globally during program execution
@@ -54,8 +66,8 @@ type Peri struct {
 	blockArrivals       map[blockAnnounce]int64
 	blockArrivalPerPeer map[blockAnnounce]map[string]int64
 
-	peersSnapShot map[string]string // record peers id to enode, used by noDropPeer function
-	blacklist     map[string]bool   // black list of ip address
+	peersSnapShot map[string]string    // record peers id to enode, used by noDropPeer function
+	blocklist     map[string]blockItem // block list of ip address
 
 	fileLogger log.Logger // eviction log
 	nodesDb    *enode.DB
@@ -114,21 +126,27 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 		blockArrivalPerPeer: make(map[blockAnnounce]map[string]int64),
 
 		peersSnapShot: make(map[string]string),
-		blacklist:     make(map[string]bool),
+		blocklist:     make(map[string]blockItem),
 		fileLogger:    log.New(),
 	}
 	peri.txsPeerCount = h.maxPeers - peri.replaceCount - peri.blockPeersCount
 
 	for _, ip := range config.PeriNoPeerIPList {
-		peri.blacklist[ip] = true
+		peri.blocklist[ip] = blockItem{
+			ip:          ip,
+			count:       1,
+			expiredTime: time.Now().Add(365 * 24 * time.Hour),
+		}
 	}
 
-	databasePath := filepath.Join(config.PeriDataDirectory, periNodeDbPath)
+	databasePath := filepath.Join(config.PeriDataDirectory, perDbPath)
+
 	peri.nodesDb, err = enode.OpenDB(databasePath)
 	if err != nil {
 		log.Crit("open peri database failed", "err", err)
 	}
 
+	// load nodes from peri's database
 	periNodesCount := peri.nodesDb.FetchUint64([]byte(periNodeCountKey))
 	if periNodesCount > 0 {
 		for i := 0; i < int(periNodesCount); i++ {
@@ -143,7 +161,28 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 			}
 		}
 	}
-	p2pServe.AddPeriInitialNodes(nodes[:h.maxPeers])
+	if len(nodes) > h.maxPeers {
+		p2pServe.AddPeriInitialNodes(nodes[:h.maxPeers])
+	} else {
+		p2pServe.AddPeriInitialNodes(nodes)
+	}
+
+	// load blocklist from peri's data
+	periBlocklistCount := peri.nodesDb.FetchUint64([]byte(periBlocklistCountKey))
+	if periBlocklistCount > 0 {
+		for i := 0; i < int(periBlocklistCount); i++ {
+			blockIp := peri.nodesDb.FetchString([]byte(periBlockIpKeyPrefix + strconv.Itoa(i)))
+			blockCount := peri.nodesDb.FetchUint64([]byte(periBlockTimeKeyPrefix + strconv.Itoa(i)))
+			blockExpire := peri.nodesDb.FetchUint64([]byte(periBlockExpireKeyPrefix + strconv.Itoa(i)))
+			if blockIp != "" {
+				peri.blocklist[blockIp] = blockItem{
+					ip:          blockIp,
+					count:       int64(blockCount),
+					expiredTime: time.UnixMilli(int64(blockExpire)),
+				}
+			}
+		}
+	}
 
 	if config.PeriLogFilePath != "" {
 		f, err = os.OpenFile(config.PeriLogFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -204,6 +243,7 @@ func (p *Peri) StartPeri() {
 				numDrop = 0
 			}
 
+			// store nodes to peri's database
 			err = p.nodesDb.StoreInt64([]byte(periNodeCountKey), int64(len(peersReserver)))
 			if err != nil {
 				log.Warn("peri store node count failed when exit", "err", err)
@@ -217,6 +257,29 @@ func (p *Peri) StartPeri() {
 				if err != nil {
 					log.Warn("peri store enode failed when exit", "err", err)
 				}
+			}
+
+			// store blocklist items to peri's database
+			err = p.nodesDb.StoreInt64([]byte(periBlocklistCountKey), int64(len(p.blocklist)))
+			if err != nil {
+				log.Warn("peri store block item failed when exit", "err", err)
+			}
+
+			i = 0
+			for _, blockedItem := range p.blocklist {
+				err = p.nodesDb.StoreString([]byte(periBlockIpKeyPrefix+strconv.Itoa(i)), blockedItem.ip)
+				if err != nil {
+					log.Warn("peri store block item's ip failed when exit", "err", err)
+				}
+				err = p.nodesDb.StoreInt64([]byte(periBlockTimeKeyPrefix+strconv.Itoa(i)), blockedItem.count)
+				if err != nil {
+					log.Warn("peri store block item's count failed when exit", "err", err)
+				}
+				err = p.nodesDb.StoreInt64([]byte(periBlockExpireKeyPrefix+strconv.Itoa(i)), blockedItem.expiredTime.UnixMilli())
+				if err != nil {
+					log.Warn("peri store block item's expired time failed when exit", "err", err)
+				}
+				i++
 			}
 		}
 	}()
@@ -453,7 +516,6 @@ func (p *Peri) getScores() ([]idScore, []idScore, map[string]bool) {
 		}
 	})
 
-	// todo: not sure length of block scores and transaction scores are identical
 	return blockScores, transactionScores, excused
 }
 
@@ -585,8 +647,20 @@ func (p *Peri) disconnectByScore() {
 				continue
 			}
 			cnt++
-			// drop nodes, and add them to the blacklist
-			p.blacklist[extractIPFromEnode(p.peersSnapShot[id])] = true
+
+			// drop nodes, and add them to the blocklist
+			if blockedItem, ok := p.blocklist[extractIPFromEnode(p.peersSnapShot[id])]; ok {
+				blockedItem.count += 1
+				blockedItem.expiredTime = time.Now().Add(time.Duration(blockedItem.count*24) * time.Hour)
+				p.blocklist[extractIPFromEnode(p.peersSnapShot[id])] = blockedItem
+			} else {
+				p.blocklist[extractIPFromEnode(p.peersSnapShot[id])] = blockItem{
+					ip:          extractIPFromEnode(p.peersSnapShot[id]),
+					count:       1,
+					expiredTime: time.Now().Add(time.Duration(blockedItem.count*24) * time.Hour),
+				}
+			}
+
 			p.handler.removePeer(id)
 			p.handler.unregisterPeer(id)
 		}
@@ -600,8 +674,20 @@ func (p *Peri) disconnectByScore() {
 				continue
 			}
 			cnt++
-			// drop nodes, and add them to the blacklist
-			p.blacklist[extractIPFromEnode(p.peersSnapShot[id])] = true
+
+			// drop nodes, and add them to the blocklist
+			if blockedItem, ok := p.blocklist[extractIPFromEnode(p.peersSnapShot[id])]; ok {
+				blockedItem.count += 1
+				blockedItem.expiredTime = time.Now().Add(time.Duration(blockedItem.count*24) * time.Hour)
+				p.blocklist[extractIPFromEnode(p.peersSnapShot[id])] = blockedItem
+			} else {
+				p.blocklist[extractIPFromEnode(p.peersSnapShot[id])] = blockItem{
+					ip:          extractIPFromEnode(p.peersSnapShot[id]),
+					count:       1,
+					expiredTime: time.Now().Add(time.Duration(blockedItem.count*24) * time.Hour),
+				}
+			}
+
 			p.handler.removePeer(id)
 			p.handler.unregisterPeer(id)
 		}
@@ -645,11 +731,14 @@ func (p *Peri) summaryStats(blockScores []idScore, txScores []idScore, excused m
 func (p *Peri) isBlocked(enode string) bool {
 	p.lock()
 	defer p.unlock()
-	_, blocked := p.blacklist[extractIPFromEnode(enode)]
-	return blocked
+	blockedItem, ok := p.blocklist[extractIPFromEnode(enode)]
+	if ok && time.Now().After(blockedItem.expiredTime) == false {
+		return true
+	}
+	return false
 }
 
-func (p *Peri) broadcastBlockToPioplatPeer(peer *eth.Peer, block *types.Block, td *big.Int) {
+func (p *Peri) BroadcastBlockToPioplatPeer(peer *eth.Peer, block *types.Block, td *big.Int) {
 	if dist := int64(block.NumberU64()) - int64(p.handler.chain.CurrentBlock().NumberU64()); dist < -maxBlockDist || dist > maxBlockDist {
 		return
 	}
@@ -663,7 +752,11 @@ func (p *Peri) broadcastBlockToPioplatPeer(peer *eth.Peer, block *types.Block, t
 			if _, found := p.handler.periPeersIp[peerIp]; found {
 				if ethPeerElement.KnownBlock(block.Hash()) == false {
 					ethPeerElement.AsyncSendNewBlock(block, td)
-					log.Info("deliver block to pioplat peer", "block", block.NumberU64(), "from", peer.Node().IP().String(), "to", peerIp)
+					if peer != nil {
+						log.Info("deliver block to pioplat peer", "block", block.NumberU64(), "from", peer.Node().IP().String(), "to", peerIp)
+					} else {
+						log.Info("deliver block to pioplat peer", "block", block.NumberU64(), "to", peerIp)
+					}
 				}
 
 				// all Pioplat nodes have been searched, ending early.
@@ -677,7 +770,7 @@ func (p *Peri) broadcastBlockToPioplatPeer(peer *eth.Peer, block *types.Block, t
 	}
 }
 
-func (p *Peri) broadcastTransactionsToPioplatPeer(txs []*types.Transaction) {
+func (p *Peri) BroadcastTransactionsToPioplatPeer(txs []*types.Transaction) {
 	if p.handler.periBroadcast {
 		for _, tx := range txs {
 			// use map p.handler.periPeersIp to decide whether broadcast this block

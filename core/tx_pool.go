@@ -912,7 +912,7 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 // senders are not among the locally tracked ones, full pricing constraints will apply.
 //
 // This method is used to add transactions from the p2p network and does not wait for pool
-// reorganization and exinternal event propagation.
+// reorganization and internal event propagation.
 func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 	for _, tx := range txs {
 		ctx := log.Ctx{
@@ -1357,7 +1357,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			}
 		}
 	}
-	// Initialize the exinternal state to the current head
+	// Initialize the internal state to the current head
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
@@ -1731,8 +1731,8 @@ func (as *accountSet) merge(other *accountSet) {
 //
 // Note, although this type is properly protected against concurrent access, it
 // is **not** a type that should ever be mutated or even exposed outside of the
-// transaction pool, since its exinternal state is tightly coupled with the pools
-// exinternal mechanisms. The sole purpose of the type is to permit out-of-bound
+// transaction pool, since its internal state is tightly coupled with the pools
+// internal mechanisms. The sole purpose of the type is to permit out-of-bound
 // peeking into the pool in TxPool.Get without having to acquire the widely scoped
 // TxPool.mu mutex.
 //

@@ -60,7 +60,7 @@ import (
 
 	"github.com/cespare/cp"
 	"github.com/ethereum/go-ethereum/crypto/signify"
-	"github.com/ethereum/go-ethereum/exinternal/build"
+	"github.com/ethereum/go-ethereum/internal/build"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -344,10 +344,10 @@ func downloadLinter(cachedir string) string {
 	arch := runtime.GOARCH
 	ext := ".tar.gz"
 
-        if runtime.GOOS == "windows" {
-	        ext = ".zip"
-        }
-        if arch == "arm" {
+	if runtime.GOOS == "windows" {
+		ext = ".zip"
+	}
+	if arch == "arm" {
 		arch += "v" + os.Getenv("GOARM")
 	}
 	base := fmt.Sprintf("golangci-lint-%s-%s-%s", version, runtime.GOOS, arch)

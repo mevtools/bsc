@@ -368,12 +368,12 @@ func (dl *diffLayer) AccountRLP(hash common.Hash) ([]byte, error) {
 		snapshotBloomAccountMissMeter.Mark(1)
 		return origin.AccountRLP(hash)
 	}
-	// The bloom filter hit, start poking in the exinternal maps
+	// The bloom filter hit, start poking in the internal maps
 	return dl.accountRLP(hash, 0)
 }
 
-// accountRLP is an exinternal version of AccountRLP that skips the bloom filter
-// checks and uses the exinternal maps to try and retrieve the data. It's meant
+// accountRLP is an internal version of AccountRLP that skips the bloom filter
+// checks and uses the internal maps to try and retrieve the data. It's meant
 // to be used if a higher layer's bloom filter hit already.
 func (dl *diffLayer) accountRLP(hash common.Hash, depth int) ([]byte, error) {
 	dl.lock.RLock()
@@ -434,12 +434,12 @@ func (dl *diffLayer) Storage(accountHash, storageHash common.Hash) ([]byte, erro
 		snapshotBloomStorageMissMeter.Mark(1)
 		return origin.Storage(accountHash, storageHash)
 	}
-	// The bloom filter hit, start poking in the exinternal maps
+	// The bloom filter hit, start poking in the internal maps
 	return dl.storage(accountHash, storageHash, 0)
 }
 
-// storage is an exinternal version of Storage that skips the bloom filter checks
-// and uses the exinternal maps to try and retrieve the data. It's meant  to be
+// storage is an internal version of Storage that skips the bloom filter checks
+// and uses the internal maps to try and retrieve the data. It's meant  to be
 // used if a higher layer's bloom filter hit already.
 func (dl *diffLayer) storage(accountHash, storageHash common.Hash, depth int) ([]byte, error) {
 	dl.lock.RLock()

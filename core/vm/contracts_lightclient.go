@@ -52,7 +52,7 @@ func (c *tmHeaderValidate) RequiredGas(input []byte) uint64 {
 func (c *tmHeaderValidate) Run(input []byte) (result []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("exinternal error: %v\n", r)
+			err = fmt.Errorf("internal error: %v\n", r)
 		}
 	}()
 
@@ -160,7 +160,7 @@ type basicIavlMerkleProofValidate struct {
 func (c *basicIavlMerkleProofValidate) Run(input []byte) (result []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("exinternal error: %v\n", r)
+			err = fmt.Errorf("internal error: %v\n", r)
 		}
 	}()
 

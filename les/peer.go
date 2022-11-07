@@ -891,7 +891,7 @@ func (p *clientPeer) replyBlockBodiesRLP(reqID uint64, bodies []rlp.RawValue) *r
 	return &reply{p.rw, BlockBodiesMsg, reqID, data}
 }
 
-// replyCode creates a reply with a batch of arbitrary exinternal data, corresponding to the
+// replyCode creates a reply with a batch of arbitrary internal data, corresponding to the
 // hashes requested.
 func (p *clientPeer) replyCode(reqID uint64, codes [][]byte) *reply {
 	data, _ := rlp.EncodeToBytes(codes)

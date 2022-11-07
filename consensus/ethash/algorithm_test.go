@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// prepare converts an ethash cache or dataset from a byte stream into the exinternal
+// prepare converts an ethash cache or dataset from a byte stream into the internal
 // int representation. All ethash methods work with ints to avoid constant byte to
 // int conversions as well as to handle both little and big endian systems.
 func prepare(dest []uint32, src []byte) {
