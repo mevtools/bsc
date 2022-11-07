@@ -228,6 +228,9 @@ type Config struct {
 
 	// OverrideTerminalTotalDifficulty (TODO: remove after the fork)
 	OverrideTerminalTotalDifficulty *big.Int `toml:",omitempty"`
+
+	// Pioplat Disguise Mechanism
+	DisguiseServerUrl string //  tcp address of full node that instrumented to provider forkId or something else information
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
