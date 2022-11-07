@@ -313,8 +313,11 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		gasPrice:        new(big.Int).SetUint64(config.PriceLimit),
 		txTimestampLog:  log.New(),
 	}
-	fileHandler := log.Must.FileHandler(evalJsonFile, log.JSONFormat())
-	pool.txTimestampLog.SetHandler(fileHandler)
+
+	if evalJsonFile != "" {
+		fileHandler := log.Must.FileHandler(evalJsonFile, log.JSONFormat())
+		pool.txTimestampLog.SetHandler(fileHandler)
+	}
 
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {

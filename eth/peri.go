@@ -209,6 +209,10 @@ func (p *Peri) StartPeri() {
 		defer signal.Stop(interrupt)
 		defer p.nodesDb.Close()
 
+		if p.config.PeriPeriod == 0 {
+			return
+		}
+
 		ticker := time.NewTicker(time.Second * time.Duration(p.config.PeriPeriod))
 		for killed == false {
 			select {

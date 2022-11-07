@@ -182,10 +182,6 @@ type TraceConfig struct {
 // TraceCallConfig is the config for traceCall API. It holds one more
 // field to override the state for tracing.
 type TraceCallConfig struct {
-	*logger.Config
-	Tracer            *string
-	Timeout           *string
-	Reexec            *uint64
 	StateOverrides    *ethapi.StateOverride
 	BlockOverrides    *ethapi.BlockOverrides
 	NestedTraceOutput bool // Returns the trace output JSON nested under the trace name key. This allows full Parity compatibility to be achieved.
@@ -1026,6 +1022,11 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Contex
 
 	// Call Prepare to clear out the statedb access list
 	statedb.Prepare(txctx.TxHash, txctx.TxIndex)
+
+	// CaptrurePreEVM is being used from state_diff tracer to read balance/nonce/code of accounts before TX execution
+	if traceStateCapturer, ok := tracer.(vm.EVMLogger_StateCapturer); ok {
+		traceStateCapturer.CapturePreEVM(vmenv)
+	}
 	if _, err = core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas())); err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}

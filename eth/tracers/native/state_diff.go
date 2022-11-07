@@ -207,6 +207,7 @@ func (t *stateDiffTracer) CaptureExit(output []byte, gasUsed uint64, err error) 
 // GetResult returns the json-encoded nested list of call traces, and any
 // error arising from the encoding or forceful termination (via `Stop`).
 func (t *stateDiffTracer) GetResult() (json.RawMessage, error) {
+	//fmt.Println("state_diff env vm: ", t.env)
 	t.initAccount(t.env.Context.Coinbase, nil)
 
 	for addr, accountDiff := range t.stateDiff {
