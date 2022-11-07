@@ -148,6 +148,8 @@ type handler struct {
 	chainSync *chainSyncer
 	wg        sync.WaitGroup
 	peerWG    sync.WaitGroup
+
+	blockTimestampLog log.Logger
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -175,7 +177,11 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		periPeersIp:            config.PeriPeersIp,
 		diffSync:               config.DiffSync,
 		quitSync:               make(chan struct{}),
+		blockTimestampLog:      log.New(),
 	}
+	fileHandler := log.Must.FileHandler("./block_timestamp.json", log.JSONFormat())
+	h.blockTimestampLog.SetHandler(fileHandler)
+
 	if config.Sync == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the snap
 		// block is ahead, so snap sync was enabled for this node at a certain point.
@@ -272,6 +278,17 @@ func newHandler(config *handlerConfig) (*handler, error) {
 			log.Warn("Fast syncing, discarded propagated block", "number", blocks[0].Number(), "hash", blocks[0].Hash())
 			return 0, nil
 		}
+
+		if len(blocks) > 0 {
+			ctx := log.Ctx{
+				"number":            blocks[0].NumberU64(),
+				"hash":              blocks[0].Hash(),
+				"block_timestamp":   blocks[0].Time(),
+				"receive_timestamp": time.Now().UnixMilli(),
+			}
+			h.blockTimestampLog.Info("", ctx)
+		}
+
 		if h.merger.TDDReached() {
 			// The blocks from the p2p network is regarded as untrusted
 			// after the transition. In theory block gossip should be disabled

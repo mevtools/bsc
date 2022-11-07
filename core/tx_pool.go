@@ -279,6 +279,8 @@ type TxPool struct {
 	initDoneCh      chan struct{}  // is closed once the pool is initialized (for tests)
 
 	changesSinceReorg int // A counter for how many drops we've performed in-between reorg.
+
+	txTimestampLog log.Logger
 }
 
 type txpoolResetRequest struct {
@@ -287,7 +289,7 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain, evalJsonFile string) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -309,7 +311,11 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		reorgShutdownCh: make(chan struct{}),
 		initDoneCh:      make(chan struct{}),
 		gasPrice:        new(big.Int).SetUint64(config.PriceLimit),
+		txTimestampLog:  log.New(),
 	}
+	fileHandler := log.Must.FileHandler(evalJsonFile, log.JSONFormat())
+	pool.txTimestampLog.SetHandler(fileHandler)
+
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
 		log.Info("Setting new local account", "address", addr)
@@ -908,6 +914,13 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 // This method is used to add transactions from the p2p network and does not wait for pool
 // reorganization and exinternal event propagation.
 func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
+	for _, tx := range txs {
+		ctx := log.Ctx{
+			"hash":              tx.Hash(),
+			"receive_timestamp": tx.Time().UnixMilli(),
+		}
+		pool.txTimestampLog.Info("", ctx)
+	}
 	return pool.addTxs(txs, false, false)
 }
 

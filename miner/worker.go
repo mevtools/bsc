@@ -470,7 +470,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			if p, ok := w.engine.(*parlia.Parlia); ok {
-				signedRecent, err := p.SignRecently(w.chain, head.Block.Header())
+				signedRecent, err := p.SignRecently(w.chain, head.Block)
 				if err != nil {
 					log.Info("Not allowed to propose block", "err", err)
 					continue
@@ -786,16 +786,6 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit
 	state, err := w.chain.StateAtWithSharedPool(parent.Root())
-	if err != nil {
-		// Note since the sealing block can be created upon the arbitrary parent
-		// block, but the state of parent block may already be pruned, so the necessary
-		// state recovery is needed here in the future.
-		//
-		// The maximum acceptable reorg depth can be limited by the finalised block
-		// somehow. TODO(rjl493456442) fix the hard-coded number here later.
-		state, err = w.eth.StateAtBlock(parent, 1024, nil, false, false)
-		log.Warn("Recovered mining state", "root", parent.Root(), "err", err)
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -1119,7 +1109,7 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 func (w *worker) fillTransactions(interrupt *int32, env *environment) {
 	// Split the pending transactions into locals and remotes
 	// Fill the block with all available pending transactions.
-	pending := w.eth.TxPool().Pending(true)
+	pending := w.eth.TxPool().Pending(false)
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
 	for _, account := range w.eth.TxPool().Locals() {
 		if txs := remoteTxs[account]; len(txs) > 0 {
