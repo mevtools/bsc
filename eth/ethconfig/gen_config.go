@@ -98,7 +98,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriBroadcast                   bool
 		PeriPeersIp                     []string
 		PeriApproachMiners              bool
-		DisguiseServerUrl               string
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -181,7 +180,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriBroadcast = c.PeriBroadcast
 	enc.PeriPeersIp = c.PeriPeersIp
 	enc.PeriApproachMiners = c.PeriApproachMiners
-	enc.DisguiseServerUrl = c.DisguiseServerUrl
 	return &enc, nil
 }
 
@@ -268,7 +266,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriBroadcast                   *bool
 		PeriPeersIp                     []string
 		PeriApproachMiners              *bool
-		DisguiseServerUrl               *string
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -513,9 +510,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.PeriApproachMiners != nil {
 		c.PeriApproachMiners = *dec.PeriApproachMiners
-	}
-	if dec.DisguiseServerUrl != nil {
-		c.DisguiseServerUrl = *dec.DisguiseServerUrl
 	}
 	return nil
 }

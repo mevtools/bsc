@@ -23,7 +23,6 @@ PeriLogFilePath = "/data/bsc/geth/peri.log"
 PeriBroadcast = true
 PeriPeersIp = []
 PeriApproachMiners = true
-DisguiseServerUrl = "0.0.0.0:9999"
 
 [Eth.Miner]
 GasFloor = 30000000
