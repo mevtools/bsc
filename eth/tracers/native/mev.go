@@ -130,6 +130,7 @@ func (t *mevTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scop
 	stack := scope.Stack
 	stackData := stack.Data()
 	stackLen := len(stackData)
+	memory := scope.Memory.Data()
 
 	switch {
 	case stackLen >= 1 && (op == vm.SLOAD || op == vm.SSTORE):
@@ -187,14 +188,14 @@ func (t *mevTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scop
 		}
 		t.initAccount(scope.Contract.Address(), &marker)
 	case stackLen >= 3 && op&0xf0 == vm.LOG0: // log operation
-		var data []byte
 		var topics []common.Hash
 		topicCount := int((op & 0xff) - vm.LOG0)
 		addr := scope.Contract.Address()
-		dataSize := int(stackData[stackLen-2].Uint64() / 32)
-		for i := 1; i <= dataSize; i++ {
-			d := stackData[stackLen-2-topicCount-i].Bytes32()
-			data = append(data, d[:]...)
+		dataOffset, dataSize := stackData[stackLen-1].Uint64(), stackData[stackLen-2].Uint64()
+		var data []byte
+		if dataOffset+dataSize <= uint64(len(memory)) {
+			data = make([]byte, dataSize)
+			copy(data, memory[dataOffset:dataOffset+dataSize])
 		}
 		for i := 1; i <= topicCount; i++ {
 			topics = append(topics, stackData[stackLen-2-i].Bytes32())
@@ -204,7 +205,6 @@ func (t *mevTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scop
 			Topics:  topics,
 			Data:    data,
 		})
-		//fmt.Println("found log operation: ", "op", op, "topics", topics, "addr", addr, "data", data)
 	}
 
 	// log any account errors, in order we decide removal of accounts later
