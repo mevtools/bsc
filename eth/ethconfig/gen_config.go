@@ -99,6 +99,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		PeriPeersIp                     []string
 		PeriApproachMiners              bool
 		DisguiseServerUrl               string
+		DisguiseServerX509CertFile      string
+		DisguiseServerX509KeyFile       string
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -182,6 +184,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.PeriPeersIp = c.PeriPeersIp
 	enc.PeriApproachMiners = c.PeriApproachMiners
 	enc.DisguiseServerUrl = c.DisguiseServerUrl
+	enc.DisguiseServerX509CertFile = c.DisguiseServerX509CertFile
+	enc.DisguiseServerX509KeyFile = c.DisguiseServerX509KeyFile
 	return &enc, nil
 }
 
@@ -269,6 +273,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		PeriPeersIp                     []string
 		PeriApproachMiners              *bool
 		DisguiseServerUrl               *string
+		DisguiseServerX509CertFile      *string
+		DisguiseServerX509KeyFile       *string
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -516,6 +522,12 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.DisguiseServerUrl != nil {
 		c.DisguiseServerUrl = *dec.DisguiseServerUrl
+	}
+	if dec.DisguiseServerX509CertFile != nil {
+		c.DisguiseServerX509CertFile = *dec.DisguiseServerX509CertFile
+	}
+	if dec.DisguiseServerX509KeyFile != nil {
+		c.DisguiseServerX509KeyFile = *dec.DisguiseServerX509KeyFile
 	}
 	return nil
 }

@@ -257,7 +257,9 @@ type Config struct {
 	PeriApproachMiners       bool     // indicate whether Peri approach miners, if true -> miners, if false -> victims
 
 	// Pioplat Disguise Mechanism
-	DisguiseServerUrl string //  tcp address of full node that instrumented to provider forkId or something else information
+	DisguiseServerUrl          string // tcp address of full node that instrumented to provider forkId or something else information
+	DisguiseServerX509CertFile string // tls cert .pem file
+	DisguiseServerX509KeyFile  string // tls key .pem file
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
