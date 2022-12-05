@@ -360,7 +360,7 @@ func (ds *DisguiseServer) serveGetReceiptsByHash(rdr *bufio.Reader, wdr *bufio.W
 func (ds *DisguiseServer) serveGetBlockBodyRlpByHash(rdr *bufio.Reader, wdr *bufio.Writer) error {
 	var (
 		err     error
-		buffer  = make([]byte, 0x1000)
+		buffer  = make([]byte, 0x10000)
 		resHash common.Hash
 		data    rlp.RawValue
 	)
@@ -370,6 +370,10 @@ func (ds *DisguiseServer) serveGetBlockBodyRlpByHash(rdr *bufio.Reader, wdr *buf
 	}
 	resHash.SetBytes(buffer[:HashSize])
 	data = ds.chain.GetBodyRLP(resHash)
+	if LengthSize+len(data) > len(buffer) {
+		buffer = make([]byte, LengthSize+len(data))
+	}
+
 	binary.LittleEndian.PutUint32(buffer, uint32(len(data)))
 	copy(buffer[LengthSize:], data)
 	_, err = wdr.Write(buffer[:LengthSize+len(data)])
