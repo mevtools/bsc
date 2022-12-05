@@ -133,7 +133,6 @@ func adjustLeft(msg []byte, size int) []byte {
 func (ds *DisguiseServer) serveDisguiseClient(conn net.Conn) {
 	var (
 		err    error
-		recvN  = 0
 		cmd    string
 		buffer = make([]byte, 0x100)
 		rdr    = bufio.NewReader(conn)
@@ -141,8 +140,8 @@ func (ds *DisguiseServer) serveDisguiseClient(conn net.Conn) {
 	)
 	atomic.AddInt32(&ds.curConCount, 1)
 	log.Info("accept disguise client connection", "connection count", atomic.LoadInt32(&ds.curConCount))
-	recvN, err = io.ReadFull(rdr, buffer[:CmdSize])
-	for err == nil && recvN >= CmdSize {
+	_, err = io.ReadFull(rdr, buffer[:CmdSize])
+	for err == nil {
 		cmd = string(buffer[:CmdSize])
 		switch cmd {
 		case GetAllAbove:
@@ -250,7 +249,7 @@ func (ds *DisguiseServer) serveDisguiseClient(conn net.Conn) {
 			break
 		}
 
-		recvN, err = io.ReadFull(rdr, buffer[:CmdSize])
+		_, err = io.ReadFull(rdr, buffer[:CmdSize])
 	}
 	atomic.AddInt32(&ds.curConCount, -1)
 	conn.Close()
@@ -277,6 +276,7 @@ func (ds *DisguiseServer) serveGetTotalDifficulty(rdr *bufio.Reader, wdr *bufio.
 	binary.LittleEndian.PutUint32(buffer, BlockNumberSize)
 	binary.LittleEndian.PutUint64(buffer[LengthSize:], td.Uint64())
 	_, err = wdr.Write(buffer[:LengthSize+BlockNumberSize])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
@@ -299,6 +299,7 @@ func (ds *DisguiseServer) serveGetTrieNode(rdr *bufio.Reader, wdr *bufio.Writer)
 	// todo: may err
 	copy(buffer[LengthSize:], data)
 	_, err = wdr.Write(buffer[:LengthSize+len(data)])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
@@ -321,6 +322,7 @@ func (ds *DisguiseServer) serveGetContractCodeWithPrefix(rdr *bufio.Reader, wdr 
 	// todo: may err
 	copy(buffer[LengthSize:], data)
 	_, err = wdr.Write(buffer[:LengthSize+len(data)])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
@@ -348,6 +350,7 @@ func (ds *DisguiseServer) serveGetReceiptsByHash(rdr *bufio.Reader, wdr *bufio.W
 	binary.LittleEndian.PutUint32(buffer, uint32(len(receiptsBytes)))
 	copy(buffer[LengthSize:], receiptsBytes)
 	_, err = wdr.Write(buffer[:LengthSize+len(receiptsBytes)])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
@@ -370,6 +373,7 @@ func (ds *DisguiseServer) serveGetBlockBodyRlpByHash(rdr *bufio.Reader, wdr *buf
 	binary.LittleEndian.PutUint32(buffer, uint32(len(data)))
 	copy(buffer[LengthSize:], data)
 	_, err = wdr.Write(buffer[:LengthSize+len(data)])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
@@ -402,6 +406,7 @@ func (ds *DisguiseServer) serveGetAncestor(rdr *bufio.Reader, wdr *bufio.Writer)
 	binary.LittleEndian.PutUint64(buffer[LengthSize+HashSize:], ansUint64)
 
 	_, err = wdr.Write(buffer[:LengthSize+HashSize+BlockNumberSize])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
@@ -415,7 +420,7 @@ func (ds *DisguiseServer) serveGetHeader(cmd string, rdr *bufio.Reader, wdr *buf
 		buffer      = make([]byte, 0x1000)
 		resHash     common.Hash
 		resNumber   uint64
-		header      *types.Header
+		header      *types.Header = nil
 		headerBytes []byte
 	)
 	switch cmd {
@@ -443,14 +448,21 @@ func (ds *DisguiseServer) serveGetHeader(cmd string, rdr *bufio.Reader, wdr *buf
 		header = ds.chain.GetHeader(resHash, resNumber)
 	}
 
+	//log.Info("disguise serve get header", "cmd", cmd, "hash", resHash, "number", resNumber, "response", header.Hash())
+
 	headerBytes, err = rlp.EncodeToBytes(header)
 	if err != nil {
+		log.Warn("encode header to rlp failed", "reason", err)
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(buffer, uint32(len(headerBytes)))
 	copy(buffer[LengthSize:], headerBytes)
+
+	//fmt.Println("write: ", buffer[:LengthSize+len(headerBytes)])
+
 	_, err = wdr.Write(buffer[:LengthSize+len(headerBytes)])
+	_ = wdr.Flush()
 	if err != nil {
 		return err
 	}
