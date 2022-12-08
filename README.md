@@ -130,6 +130,16 @@ chmod -v u+x geth
 wget $(curl -s https://api.github.com/repos/bnb-chain/bsc/releases/latest |grep browser_ |grep mainnet |cut -d\" -f4)
 unzip mainnet.zip
 ```
+This command will:
+ * Start `geth` in fast sync mode (default, can be changed with the `--syncmode` flag),
+   causing it to download more data in exchange for avoiding processing the entire history
+   of the Binance Smart Chain network, which is very CPU intensive.
+ * Start up `geth`'s built-in interactive [JavaScript console](https://geth.ethereum.org/docs/interface/javascript-console),
+   (via the trailing `console` subcommand) through which you can interact using [`web3` methods](https://web3js.readthedocs.io/) 
+   (note: the `web3` version bundled within `geth` is very old, and not up to date with official docs),
+   as well as `geth`'s own [management APIs](https://geth.ethereum.org/docs/rpc/server).
+   This tool is optional and if you leave it out you can always attach to an already running
+   `geth` instance with `geth attach`.
 
 #### 3. Download snapshot
 Download latest chaindata snapshot from [here](https://github.com/bnb-chain/bsc-snapshots). Follow the guide to structure your files.
