@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"encoding/binary"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/rlp"
 	"io"
 	"math/big"
@@ -32,6 +33,7 @@ const (
 	GetContractCodeWithPrefix = "6000"
 	GetTrieNode               = "7000"
 	GetTotalDifficulty        = "8000"
+	GetValidateHeader         = "9000"
 )
 
 const (
@@ -70,6 +72,8 @@ type Blockchain interface {
 	ContractCodeWithPrefix(hash common.Hash) ([]byte, error)
 	TrieNode(hash common.Hash) ([]byte, error)
 	GetTd(hash common.Hash, number uint64) *big.Int
+	Engine() consensus.Engine
+	GetHighestVerifiedHeader() *types.Header
 }
 
 func StartDisguiseServer(ethConfig *ethconfig.Config, genesisHash common.Hash, chain Blockchain) {
@@ -244,6 +248,15 @@ func (ds *DisguiseServer) serveDisguiseClient(conn net.Conn) {
 				break
 			}
 		case GetTotalDifficulty:
+			err = ds.serveGetTotalDifficulty(rdr, wdr)
+			if err != nil {
+				break
+			}
+		case GetValidateHeader:
+			err = ds.serverValidateHeader(rdr, wdr)
+			if err != nil {
+				break
+			}
 		default:
 			log.Warn("invalid request from disguise client")
 			break
@@ -410,6 +423,45 @@ func (ds *DisguiseServer) serveGetAncestor(rdr *bufio.Reader, wdr *bufio.Writer)
 	binary.LittleEndian.PutUint64(buffer[LengthSize+HashSize:], ansUint64)
 
 	_, err = wdr.Write(buffer[:LengthSize+HashSize+BlockNumberSize])
+	_ = wdr.Flush()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ds *DisguiseServer) serverValidateHeader(rdr *bufio.Reader, wdr *bufio.Writer) error {
+	var (
+		err    error
+		buffer = make([]byte, 0x1000)
+		num    uint32
+		header = &types.Header{}
+	)
+	_, err = io.ReadFull(rdr, buffer[:LengthSize])
+	if err != nil {
+		return err
+	}
+	num = binary.LittleEndian.Uint32(buffer[:LengthSize])
+	if num > uint32(len(buffer)) {
+		buffer = make([]byte, num+1)
+	}
+	_, err = io.ReadFull(rdr, buffer[:num])
+	if err != nil {
+		return err
+	}
+	err = rlp.DecodeBytes(buffer[:num], header)
+	if err != nil {
+		return err
+	}
+
+	err = ds.chain.Engine().VerifyHeader(ds.chain, header, true)
+	if err != nil {
+		num = 1
+	} else {
+		num = 0
+	}
+	binary.LittleEndian.PutUint32(buffer[:LengthSize], num)
+	_, err = wdr.Write(buffer[:LengthSize])
 	_ = wdr.Flush()
 	if err != nil {
 		return err
