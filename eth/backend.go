@@ -622,11 +622,11 @@ func (s *Ethereum) Start() error {
 	// Start the networking layer and the light server if requested
 	s.handler.Start(maxPeers)
 
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	peri = CreatePeri(s.p2pServer, s.config, s.handler)
-	//log.Info("debug print address of 'peri' in backend.go", "p", reflect.ValueOf(peri).Pointer())
-	// start running peri eviction
-	peri.StartPeri()
+	//// PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	//peri = CreatePeri(s.p2pServer, s.config, s.handler)
+	////log.Info("debug print address of 'peri' in backend.go", "p", reflect.ValueOf(peri).Pointer())
+	//// start running peri eviction
+	//peri.StartPeri()
 
 	// Start server of pioplat disguise mechanism
 	go StartDisguiseServer(s.config, params.BSCGenesisHash, s.blockchain)
