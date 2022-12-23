@@ -295,6 +295,12 @@ func (ds *DisguiseServer) serveGetTotalDifficulty(rdr *bufio.Reader, wdr *bufio.
 	resHash.SetBytes(buffer[:HashSize])
 	resNumber = binary.LittleEndian.Uint64(buffer[HashSize : HashSize+BlockNumberSize])
 	td = ds.chain.GetTd(resHash, resNumber)
+	if td == nil {
+		header := ds.chain.CurrentHeader()
+		if td = ds.chain.GetTd(header.Hash(), header.Number.Uint64()); td == nil {
+			td = big.NewInt(0)
+		}
+	}
 
 	binary.LittleEndian.PutUint32(buffer, BlockNumberSize)
 	binary.LittleEndian.PutUint64(buffer[LengthSize:], td.Uint64())
