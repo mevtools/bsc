@@ -1,83 +1,44 @@
-// Copyright 2022 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package native
 
 import (
 	"bytes"
 	"encoding/json"
-	"math/big"
-	"sync/atomic"
-	"time"
-
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"math/big"
+	"sync/atomic"
+	"time"
 )
 
 func init() {
-	register("stateDiffTracer", newStateDiffTracer)
+	register("mevTracer", newMevTracer)
 }
 
-type stateDiffMarker string
-
-const (
-	markerBorn    stateDiffMarker = "+"
-	markerDied    stateDiffMarker = "-"
-	markerChanged stateDiffMarker = "*"
-	markerSame    stateDiffMarker = "="
-)
-
-type stateDiff = map[common.Address]*stateDiffAccount
-type stateDiffAccount struct {
-	marker  *stateDiffMarker                                `json:"-"`
-	err     error                                           `json:"-"`
-	Balance interface{}                                     `json:"balance"`
-	Nonce   interface{}                                     `json:"nonce"`
-	Code    interface{}                                     `json:"code"`
-	Storage map[common.Hash]map[stateDiffMarker]interface{} `json:"storage"`
+type mevLog struct {
+	Address common.Address `json:"address"`
+	Topics  []common.Hash  `json:"topics"`
+	Data    []byte         `json:"data"`
+}
+type mevRes struct {
+	StateDiff    stateDiff `json:"state_diff"`
+	StructLogs   []mevLog  `json:"structured_logs"`
+	RevertReason string    `json:"revert_reason"`
 }
 
-type StateDiffBalance struct {
-	From *hexutil.Big `json:"from"`
-	To   *hexutil.Big `json:"to"`
-}
-
-type StateDiffCode struct {
-	From hexutil.Bytes `json:"from"`
-	To   hexutil.Bytes `json:"to"`
-}
-
-type StateDiffNonce struct {
-	From hexutil.Uint64 `json:"from"`
-	To   hexutil.Uint64 `json:"to"`
-}
-
-type StateDiffStorage struct {
-	From common.Hash `json:"from"`
-	To   common.Hash `json:"to"`
-}
-
-type stateDiffTracer struct {
+// 1、列出这笔交易所影响的地址列表，而无需得到具体的修改位置。
+// 2、列出这笔交易所释放的Log
+// 3、如果失败了，返回这笔交易失败的原因。
+type mevTracer struct {
 	env                *vm.EVM
 	ctx                *tracers.Context // Holds tracer context data
+	revertReason       string           // The revert reason return from the tx, if tx success, empty string return
 	stateDiff          stateDiff
+	structLogs         []mevLog
 	initialState       *state.StateDB
 	create             bool
 	to                 common.Address
@@ -87,25 +48,52 @@ type stateDiffTracer struct {
 	reason             error  // Textual reason for the interruption
 }
 
-func (t *stateDiffTracer) CaptureTxStart(gasLimit uint64) {}
+var revertSelector = crypto.Keccak256([]byte("Error(string)"))[:4]
 
-func (t *stateDiffTracer) CaptureTxEnd(restGas uint64) {}
-
-func newStateDiffTracer(ctx *tracers.Context, _ json.RawMessage) (tracers.Tracer, error) {
+func newMevTracer(ctx *tracers.Context, _ json.RawMessage) (tracers.Tracer, error) {
 	// First callframe contains tx context info
 	// and is populated on start and end.
-	return &stateDiffTracer{stateDiff: stateDiff{}, ctx: ctx,
+	return &mevTracer{stateDiff: stateDiff{}, ctx: ctx,
 		changedStorageKeys: make(map[common.Address]map[common.Hash]bool)}, nil
 }
-func (t *stateDiffTracer) CapturePreEVM(env *vm.EVM) {
+
+func (t *mevTracer) CapturePreEVM(env *vm.EVM) {
 	t.env = env
 	if t.initialState == nil {
 		t.initialState = t.env.StateDB.(*state.StateDB).Copy()
 	}
 }
 
-// CaptureStart implements the EVMLogger interface to initialize the tracing operation.
-func (t *stateDiffTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+// initAccount stores the account address, in order we fetch the data in GetResult
+func (t *mevTracer) initAccount(address common.Address, marker *stateDiffMarker) error {
+	if _, ok := t.stateDiff[address]; !ok {
+		t.stateDiff[address] = &stateDiffAccount{
+			marker:  marker,
+			Storage: make(map[common.Hash]map[stateDiffMarker]interface{}),
+		}
+	} else {
+		// update the marker if account already inited
+		if marker != nil && *marker != "" {
+			t.stateDiff[address].marker = marker
+		}
+	}
+	return nil
+}
+
+// initStorageKey stores the storage key in the account, in order we fetch the data in GetResult. It assumes `lookupAccount`
+// has been performed on the contract before.
+func (t *mevTracer) initStorageKey(addr common.Address, key common.Hash) {
+	t.stateDiff[addr].Storage[key] = make(map[stateDiffMarker]interface{})
+}
+
+func (t *mevTracer) CaptureTxStart(gasLimit uint64) {
+
+}
+func (t *mevTracer) CaptureTxEnd(restGas uint64) {
+
+}
+
+func (t *mevTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	t.create = create
 	t.to = to
 
@@ -117,15 +105,37 @@ func (t *stateDiffTracer) CaptureStart(env *vm.EVM, from common.Address, to comm
 	t.initAccount(from, nil)
 	t.initAccount(to, &marker)
 }
+func (t *mevTracer) CaptureEnd(output []byte, gasUsed uint64, _ time.Duration, err error) {
+	if err != nil {
+		if err == vm.ErrExecutionReverted && len(output) > 4 && bytes.Equal(output[:4], revertSelector) {
+			errMsg, _ := abi.UnpackRevert(output)
+			t.revertReason = err.Error() + ": " + errMsg
+		} else {
+			if err.Error() != "" {
+				t.revertReason = err.Error() // may empty
+			} else {
+				t.revertReason = "revert"
+			}
+		}
+	}
+}
 
-// CaptureEnd is called after the call finishes to finalize the tracing.
-func (t *stateDiffTracer) CaptureEnd(output []byte, gasUsed uint64, _ time.Duration, err error) {}
+func (t *mevTracer) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+	// Skip if tracing was interrupted
+	if atomic.LoadUint32(&t.interrupt) > 0 {
+		t.env.Cancel()
+		return
+	}
+}
 
-// CaptureState implements the EVMLogger interface to trace a single step of VM execution.
-func (t *stateDiffTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
+func (t *mevTracer) CaptureExit(output []byte, gasUsed uint64, err error) {}
+
+func (t *mevTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
 	stack := scope.Stack
 	stackData := stack.Data()
 	stackLen := len(stackData)
+	memory := scope.Memory.Data()
+
 	switch {
 	case stackLen >= 1 && (op == vm.SLOAD || op == vm.SSTORE):
 		addr := scope.Contract.Address()
@@ -181,6 +191,24 @@ func (t *stateDiffTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64
 			marker = ""
 		}
 		t.initAccount(scope.Contract.Address(), &marker)
+	case stackLen >= 3 && op&0xf0 == vm.LOG0: // log operation
+		var topics []common.Hash
+		topicCount := int((op & 0xff) - vm.LOG0)
+		addr := scope.Contract.Address()
+		dataOffset, dataSize := stackData[stackLen-1].Uint64(), stackData[stackLen-2].Uint64()
+		var data []byte
+		if dataOffset+dataSize <= uint64(len(memory)) {
+			data = make([]byte, dataSize)
+			copy(data, memory[dataOffset:dataOffset+dataSize])
+		}
+		for i := 1; i <= topicCount; i++ {
+			topics = append(topics, stackData[stackLen-2-i].Bytes32())
+		}
+		t.structLogs = append(t.structLogs, mevLog{
+			Address: addr,
+			Topics:  topics,
+			Data:    data,
+		})
 	}
 
 	// log any account errors, in order we decide removal of accounts later
@@ -190,23 +218,11 @@ func (t *stateDiffTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64
 		}
 	}
 }
+func (t *mevTracer) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
 
-// CaptureFault implements the EVMLogger interface to trace an execution fault.
-func (t *stateDiffTracer) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, _ *vm.ScopeContext, depth int, err error) {
 }
 
-// CaptureEnter is called when EVM enters a new scope (via call, create or selfdestruct).
-func (t *stateDiffTracer) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
-}
-
-// CaptureExit is called when EVM exits a scope, even if the scope didn't
-// execute any code.
-func (t *stateDiffTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
-}
-
-// GetResult returns the json-encoded nested list of call traces, and any
-// error arising from the encoding or forceful termination (via `Stop`).
-func (t *stateDiffTracer) GetResult() (json.RawMessage, error) {
+func (t *mevTracer) GetResult() (json.RawMessage, error) {
 	t.initAccount(t.env.Context.Coinbase, nil)
 
 	for addr, accountDiff := range t.stateDiff {
@@ -368,37 +384,22 @@ func (t *stateDiffTracer) GetResult() (json.RawMessage, error) {
 		delete(t.stateDiff, addr)
 	}
 
-	res, err := json.Marshal(t.stateDiff)
+	mevResObj := mevRes{
+		StateDiff:    t.stateDiff,
+		StructLogs:   t.structLogs,
+		RevertReason: t.revertReason,
+	}
+	res, err := json.Marshal(mevResObj)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return json.RawMessage(res), t.reason
 }
 
 // Stop terminates execution of the tracer at the first opportune moment.
-func (t *stateDiffTracer) Stop(err error) {
+func (t *mevTracer) Stop(err error) {
 	t.reason = err
 	atomic.StoreUint32(&t.interrupt, 1)
-}
-
-// initAccount stores the account address, in order we fetch the data in GetResult
-func (t *stateDiffTracer) initAccount(address common.Address, marker *stateDiffMarker) error {
-	if _, ok := t.stateDiff[address]; !ok {
-		t.stateDiff[address] = &stateDiffAccount{
-			marker:  marker,
-			Storage: make(map[common.Hash]map[stateDiffMarker]interface{}),
-		}
-	} else {
-		// update the marker if account already inited
-		if marker != nil && *marker != "" {
-			t.stateDiff[address].marker = marker
-		}
-	}
-	return nil
-}
-
-// initStorageKey stores the storage key in the account, in order we fetch the data in GetResult. It assumes `lookupAccount`
-// has been performed on the contract before.
-func (t *stateDiffTracer) initStorageKey(addr common.Address, key common.Hash) {
-	t.stateDiff[addr].Storage[key] = make(map[stateDiffMarker]interface{})
 }

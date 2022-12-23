@@ -239,7 +239,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.TxPool.Journal != "" {
 		config.TxPool.Journal = stack.ResolvePath(config.TxPool.Journal)
 	}
-	eth.txPool = core.NewTxPool(config.TxPool, chainConfig, eth.blockchain, "./tx_timestamp.json")
+	eth.txPool = core.NewTxPool(config.TxPool, chainConfig, eth.blockchain)
 
 	// Permit the downloader to use the trie cache allowance during fast sync
 	cacheLimit := cacheConfig.TrieCleanLimit + cacheConfig.TrieDirtyLimit + cacheConfig.SnapshotLimit
@@ -628,8 +628,6 @@ func (s *Ethereum) Start() error {
 	//// start running peri eviction
 	//peri.StartPeri()
 
-	// Start server of pioplat disguise mechanism
-	go StartDisguiseServer(s.config, params.BSCGenesisHash, s.blockchain)
 	return nil
 }
 
