@@ -174,7 +174,7 @@ func CreatePeri(p2pServe *p2p.Server, config *ethconfig.Config, h *handler) *Per
 			blockIp := peri.nodesDb.FetchString([]byte(periBlockIpKeyPrefix + strconv.Itoa(i)))
 			blockCount := peri.nodesDb.FetchUint64([]byte(periBlockTimeKeyPrefix + strconv.Itoa(i)))
 			blockExpire := peri.nodesDb.FetchUint64([]byte(periBlockExpireKeyPrefix + strconv.Itoa(i)))
-			if blockIp != "" {
+			if blockIp != "" && peri.isNoDropIp(blockIp) == false {
 				peri.blocklist[blockIp] = blockItem{
 					ip:          blockIp,
 					count:       int64(blockCount),
@@ -530,6 +530,15 @@ func (p *Peri) isNoDropPeer(id string) bool {
 
 	for _, ip := range p.config.PeriNoDropList {
 		if ip == ipAddress {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Peri) isNoDropIp(ip string) bool {
+	for _, ipNoDrop := range p.config.PeriNoDropList {
+		if ip == ipNoDrop {
 			return true
 		}
 	}

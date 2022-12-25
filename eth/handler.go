@@ -358,12 +358,12 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		return err
 	}
 
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	//peerEnode := peer.Node().URLv4()
-	//if peri != nil && peri.isBlocked(peerEnode) {
-	//	log.Debug("rejected node in the blacklist", "peer", peerEnode[enodeSplitIndex:])
-	//	return p2p.DiscSelf
-	//}
+	//PERI_AND_LATENCY_RECORDER_CODE_PIECE
+	peerEnode := peer.Node().URLv4()
+	if peri != nil && peri.isBlocked(peerEnode) {
+		log.Debug("rejected node in the blacklist", "peer", peerEnode[enodeSplitIndex:])
+		return p2p.DiscInPeriBlocklist
+	}
 
 	reject := false // reserved peer slots
 	if atomic.LoadUint32(&h.snapSync) == 1 {
