@@ -205,7 +205,7 @@ func (w *Wallet) connect() error {
 	return nil
 }
 
-// doselect is an internal (unlocked) function to send a SELECT APDU to the card.
+// doselect is an exinternal (unlocked) function to send a SELECT APDU to the card.
 func (w *Wallet) doselect() (*applicationInfo, error) {
 	response, err := transmit(w.card, &commandAPDU{
 		Cla:  claISO7816,
@@ -248,7 +248,7 @@ func (w *Wallet) release() error {
 	return nil
 }
 
-// pair is an internal (unlocked) function for establishing a new pairing
+// pair is an exinternal (unlocked) function for establishing a new pairing
 // with the wallet.
 func (w *Wallet) pair(puk []byte) error {
 	if w.session.paired() {

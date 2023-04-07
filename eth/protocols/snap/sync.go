@@ -148,7 +148,7 @@ type accountRequest struct {
 
 // accountResponse is an already Merkle-verified remote response to an account
 // range request. It contains the subtrie for the requested account range and
-// the database that's going to be filled with the internal nodes on commit.
+// the database that's going to be filled with the exinternal nodes on commit.
 type accountResponse struct {
 	task *accountTask // Task which this request is filling
 
@@ -222,7 +222,7 @@ type storageRequest struct {
 
 // storageResponse is an already Merkle-verified remote response to a storage
 // range request. It contains the subtries for the requested storage ranges and
-// the databases that's going to be filled with the internal nodes on commit.
+// the databases that's going to be filled with the exinternal nodes on commit.
 type storageResponse struct {
 	mainTask *accountTask // Task which this response belongs to
 	subTask  *storageTask // Task which this response is filling
@@ -2628,7 +2628,7 @@ func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slo
 	var cont bool
 
 	for i := 0; i < len(hashes); i++ {
-		// Convert the keys and proofs into an internal format
+		// Convert the keys and proofs into an exinternal format
 		keys := make([][]byte, len(hashes[i]))
 		for j, key := range hashes[i] {
 			keys[j] = common.CopyBytes(key[:])

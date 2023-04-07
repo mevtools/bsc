@@ -204,7 +204,7 @@ func proofToPath(rootHash common.Hash, root node, key []byte, proofDb ethdb.KeyV
 	}
 }
 
-// unsetInternal removes all internal node references(hashnode, embedded node).
+// unsetInternal removes all exinternal node references(hashnode, embedded node).
 // It should be called after a trie is constructed with two edge paths. Also
 // the given boundary keys must be the one used to construct the edge paths.
 //
@@ -315,7 +315,7 @@ findFork:
 		}
 		return false, nil
 	case *fullNode:
-		// unset all internal nodes in the forkpoint
+		// unset all exinternal nodes in the forkpoint
 		for i := left[pos] + 1; i < right[pos]; i++ {
 			rn.Children[i] = nil
 		}
@@ -331,7 +331,7 @@ findFork:
 	}
 }
 
-// unset removes all internal node references either the left most or right most.
+// unset removes all exinternal node references either the left most or right most.
 // It can meet these scenarios:
 //
 //   - The given path is existent in the trie, unset the associated nodes with the
@@ -544,7 +544,7 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, lastKey []byte, key
 	if err != nil {
 		return false, err
 	}
-	// Remove all internal references. All the removed parts should
+	// Remove all exinternal references. All the removed parts should
 	// be re-filled(or re-constructed) by the given leaves range.
 	empty, err := unsetInternal(root, firstKey, lastKey)
 	if err != nil {

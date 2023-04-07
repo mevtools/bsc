@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
-// Package utils contains internal helper functions for go-ethereum commands.
+// Package utils contains exinternal helper functions for go-ethereum commands.
 package utils
 
 import (
@@ -58,8 +58,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/graphql"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/flags"
 	"github.com/ethereum/go-ethereum/les"
 	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/log"
@@ -439,7 +439,7 @@ var (
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",
-		Usage: "Megabytes of memory allocated to internal caching (default = 4096 mainnet full node, 128 light mode)",
+		Usage: "Megabytes of memory allocated to exinternal caching (default = 4096 mainnet full node, 128 light mode)",
 		Value: 1024,
 	}
 	CacheDatabaseFlag = cli.IntFlag{
@@ -1157,7 +1157,7 @@ func MakeDatabaseHandles() int {
 }
 
 // MakeAddress converts an account specified directly as a hex encoded string or
-// a key index in the key store to an internal account representation.
+// a key index in the key store to an exinternal account representation.
 func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error) {
 	// If the specified account is a valid address, return it
 	if common.IsHexAddress(account) {

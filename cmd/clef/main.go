@@ -42,8 +42,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/flags"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
@@ -489,7 +489,7 @@ func newAccount(c *cli.Context) error {
 	am := core.StartClefAccountManager(ksLoc, true, lightKdf, "")
 	// This gives is us access to the external API
 	apiImpl := core.NewSignerAPI(am, 0, true, ui, nil, false, pwStorage)
-	// This gives us access to the internal API
+	// This gives us access to the exinternal API
 	internalApi := core.NewUIServerAPI(apiImpl)
 	addr, err := internalApi.New(context.Background())
 	if err == nil {

@@ -39,7 +39,7 @@ type KeyValueWriter interface {
 
 // Stater wraps the Stat method of a backing data store.
 type Stater interface {
-	// Stat returns a particular internal stat of the database.
+	// Stat returns a particular exinternal stat of the database.
 	Stat(property string) (string, error)
 }
 

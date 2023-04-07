@@ -276,7 +276,7 @@ func (r *Receipt) statusEncoding() []byte {
 	return r.PostState
 }
 
-// Size returns the approximate memory used by all internal contents. It is used
+// Size returns the approximate memory used by all exinternal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (r *Receipt) Size() common.StorageSize {
 	size := common.StorageSize(unsafe.Sizeof(*r)) + common.StorageSize(len(r.PostState))

@@ -1700,7 +1700,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 }
 
 // This is a regression test (i.e. as weird as it is, don't delete it ever), which
-// tests that under weird reorg conditions the blockchain and its internal header-
+// tests that under weird reorg conditions the blockchain and its exinternal header-
 // chain return the same latest block/header.
 //
 // https://github.com/ethereum/go-ethereum/pull/15941

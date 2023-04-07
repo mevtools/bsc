@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -423,7 +423,7 @@ func (api *SignerAPI) New(ctx context.Context) (common.Address, error) {
 	return api.newAccount()
 }
 
-// newAccount is the internal method to create a new account. It should be used
+// newAccount is the exinternal method to create a new account. It should be used
 // _after_ user-approval has been obtained
 func (api *SignerAPI) newAccount() (common.Address, error) {
 	be := api.am.Backends(keystore.KeyStoreType)
@@ -534,7 +534,7 @@ func (api *SignerAPI) lookupOrQueryPassword(address common.Address, title, promp
 		log.Warn("error obtaining password", "error", err)
 		// We'll not forward the error here, in case the error contains info about the response from the UI,
 		// which could leak the password if it was malformed json or something
-		return "", errors.New("internal error")
+		return "", errors.New("exinternal error")
 	}
 	return pwResp.Text, nil
 }

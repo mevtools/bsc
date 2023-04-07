@@ -50,7 +50,7 @@ var (
 type containerInfos struct {
 	running bool              // Flag whether the container is running currently
 	envvars map[string]string // Collection of environmental variables set on the container
-	portmap map[string]int    // Port mapping from internal port/proto combos to host binds
+	portmap map[string]int    // Port mapping from exinternal port/proto combos to host binds
 	volumes map[string]string // Volume mount points from container to host directories
 }
 

@@ -215,7 +215,7 @@ func TestDiskMerge(t *testing.T) {
 // and invalidates any previously written and cached values, discarding anything
 // after the in-progress generation marker.
 func TestDiskPartialMerge(t *testing.T) {
-	// Iterate the test a few times to ensure we pick various internal orderings
+	// Iterate the test a few times to ensure we pick various exinternal orderings
 	// for the data slots as well as the progress marker.
 	for i := 0; i < 1024; i++ {
 		// Create some accounts in the disk layer

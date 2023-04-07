@@ -137,7 +137,7 @@ type StorageData struct {
 }
 
 // Unpack retrieves the storage slots from the range packet and returns them in
-// a split flat format that's more consistent with the internal data structures.
+// a split flat format that's more consistent with the exinternal data structures.
 func (p *StorageRangesPacket) Unpack() ([][]common.Hash, [][][]byte) {
 	var (
 		hashset = make([][]common.Hash, len(p.Slots))

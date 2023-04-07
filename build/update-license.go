@@ -65,14 +65,14 @@ var (
 		"vendor/", "tests/testdata/", "build/",
 
 		// don't relicense vendored sources
-		"cmd/internal/browser",
+		"cmd/exinternal/browser",
 		"common/bitutil/bitutil",
 		"common/prque/",
 		"consensus/ethash/xor.go",
 		"crypto/bn256/",
 		"crypto/ecies/",
 		"graphql/graphiql.go",
-		"internal/jsre/deps",
+		"exinternal/jsre/deps",
 		"log/",
 		"metrics/",
 		"signer/rules/deps",

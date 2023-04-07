@@ -295,7 +295,7 @@ func (s *Sync) Process(result SyncResult) error {
 	return nil
 }
 
-// Commit flushes the data stored in the internal membatch out to persistent
+// Commit flushes the data stored in the exinternal membatch out to persistent
 // storage, returning any occurred error.
 func (s *Sync) Commit(dbw ethdb.Batch) error {
 	// Dump the membatch into a database dbw

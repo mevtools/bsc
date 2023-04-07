@@ -81,7 +81,7 @@ type priorityPool struct {
 	inactiveQueue          *prque.Prque
 }
 
-// ppNodeInfo is the internal node descriptor of priorityPool
+// ppNodeInfo is the exinternal node descriptor of priorityPool
 type ppNodeInfo struct {
 	nodePriority               nodePriority
 	node                       *enode.Node
@@ -352,7 +352,7 @@ func (pp *priorityPool) setTempState(c *ppNodeInfo) {
 	pp.tempState = append(pp.tempState, c)
 }
 
-// unsetTempState revokes the temp status of the node and reset all internal
+// unsetTempState revokes the temp status of the node and reset all exinternal
 // fields to the default value.
 func (pp *priorityPool) unsetTempState(c *ppNodeInfo) {
 	if !c.tempState {
@@ -405,7 +405,7 @@ func (pp *priorityPool) setTempStepDiv(c *ppNodeInfo, stepDiv uint64) {
 
 // enforceLimits enforces active node count and total capacity limits. It returns the
 // lowest active node priority. Note that this function is performed on the temporary
-// internal state.
+// exinternal state.
 func (pp *priorityPool) enforceLimits() (*ppNodeInfo, int64) {
 	if pp.activeCap <= pp.maxCap && pp.activeCount <= pp.maxCount {
 		return nil, math.MinInt64

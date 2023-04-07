@@ -411,7 +411,7 @@ func (t *freezerTable) truncate(items uint64) error {
 	if err := truncateFreezerFile(t.head, int64(expected.offset)); err != nil {
 		return err
 	}
-	// All data files truncated, set internal counters and return
+	// All data files truncated, set exinternal counters and return
 	t.headBytes = int64(expected.offset)
 	atomic.StoreUint64(&t.items, items)
 

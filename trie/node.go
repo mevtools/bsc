@@ -47,7 +47,7 @@ type (
 	valueNode []byte
 )
 
-// nilValueNode is used when collapsing internal trie nodes for hashing, since
+// nilValueNode is used when collapsing exinternal trie nodes for hashing, since
 // unset children need to serialize correctly.
 var nilValueNode = valueNode(nil)
 

@@ -208,7 +208,7 @@ func forGatherChildren(n node, onChild func(hash common.Hash)) {
 }
 
 // simplifyNode traverses the hierarchy of an expanded memory node and discards
-// all the internal caches, returning a node that only contains the raw data.
+// all the exinternal caches, returning a node that only contains the raw data.
 func simplifyNode(n node) node {
 	switch n := n.(type) {
 	case *shortNode:
@@ -468,7 +468,7 @@ func (db *Database) preimage(hash common.Hash) []byte {
 }
 
 // Nodes retrieves the hashes of all the nodes cached within the memory database.
-// This method is extremely expensive and should only be used to validate internal
+// This method is extremely expensive and should only be used to validate exinternal
 // states in test code.
 func (db *Database) Nodes() []common.Hash {
 	db.lock.RLock()
@@ -484,8 +484,8 @@ func (db *Database) Nodes() []common.Hash {
 }
 
 // Reference adds a new reference from a parent node to a child node.
-// This function is used to add reference between internal trie node
-// and external node(e.g. storage trie root), all internal trie nodes
+// This function is used to add reference between exinternal trie node
+// and external node(e.g. storage trie root), all exinternal trie nodes
 // are referenced together by database itself.
 func (db *Database) Reference(child common.Hash, parent common.Hash) {
 	db.lock.Lock()

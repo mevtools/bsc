@@ -90,7 +90,7 @@ type ExecutionResult struct {
 	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
 
-// Unwrap returns the internal evm error which allows us for further
+// Unwrap returns the exinternal evm error which allows us for further
 // analysis outside.
 func (result *ExecutionResult) Unwrap() error {
 	return result.Err

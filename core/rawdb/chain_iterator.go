@@ -270,7 +270,7 @@ func IndexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan
 	indexTransactions(db, from, to, interrupt, nil)
 }
 
-// indexTransactionsForTesting is the internal debug version with an additional hook.
+// indexTransactionsForTesting is the exinternal debug version with an additional hook.
 func indexTransactionsForTesting(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
 	indexTransactions(db, from, to, interrupt, hook)
 }
@@ -361,7 +361,7 @@ func UnindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt ch
 	unindexTransactions(db, from, to, interrupt, nil)
 }
 
-// unindexTransactionsForTesting is the internal debug version with an additional hook.
+// unindexTransactionsForTesting is the exinternal debug version with an additional hook.
 func unindexTransactionsForTesting(db ethdb.Database, from uint64, to uint64, interrupt chan struct{}, hook func(uint64) bool) {
 	unindexTransactions(db, from, to, interrupt, hook)
 }

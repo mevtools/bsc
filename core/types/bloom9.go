@@ -64,7 +64,7 @@ func (b *Bloom) Add(d []byte) {
 	b.add(d, make([]byte, 6))
 }
 
-// add is internal version of Add, which takes a scratch buffer for reuse (needs to be at least 6 bytes)
+// add is exinternal version of Add, which takes a scratch buffer for reuse (needs to be at least 6 bytes)
 func (b *Bloom) add(d []byte, buf []byte) {
 	i1, v1, i2, v2, i3, v3 := bloomValues(d, buf)
 	b[i1] |= v1

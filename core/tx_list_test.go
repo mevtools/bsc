@@ -40,7 +40,7 @@ func TestStrictTxListAdd(t *testing.T) {
 	for _, v := range rand.Perm(len(txs)) {
 		list.Add(txs[v], DefaultTxPoolConfig.PriceBump)
 	}
-	// Verify internal state
+	// Verify exinternal state
 	if len(list.txs.items) != len(txs) {
 		t.Errorf("transaction count mismatch: have %d, want %d", len(list.txs.items), len(txs))
 	}
