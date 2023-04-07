@@ -66,7 +66,7 @@ Hence, we cannot make the map in init, but must make it upon first use.
 var ctors map[string]ctorFn
 
 // ctorFn is the constructor signature of a native tracer.
-type ctorFn = func(*tracers.Context) tracers.Tracer
+type ctorFn = func(*tracers.Context, json.RawMessage) (tracers.Tracer, error)
 
 // register is used by native tracers to register their presence.
 func register(name string, ctor ctorFn) {
@@ -82,7 +82,7 @@ func lookup(name string, ctx *tracers.Context, cfg json.RawMessage) (tracers.Tra
 		ctors = make(map[string]ctorFn)
 	}
 	if ctor, ok := ctors[name]; ok {
-		return ctor(ctx), nil
+		return ctor(ctx, cfg)
 	}
 	return nil, errors.New("no tracer found")
 }
