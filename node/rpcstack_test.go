@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/internal/testlog"
+	"github.com/ethereum/go-ethereum/exinternal/testlog"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
@@ -276,7 +276,7 @@ func rpcRequest(t *testing.T, url string, extraHeaders ...string) *http.Response
 	}
 	for i := 0; i < len(extraHeaders); i += 2 {
 		key, value := extraHeaders[i], extraHeaders[i+1]
-		if strings.EqualFold(key, "host") {
+		if strings.ToLower(key) == "host" {
 			req.Host = value
 		} else {
 			req.Header.Set(key, value)

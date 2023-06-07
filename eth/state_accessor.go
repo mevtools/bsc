@@ -38,15 +38,15 @@ import (
 // base layer statedb can be passed then it's regarded as the statedb of the
 // parent block.
 // Parameters:
-//   - block: The block for which we want the state (== state at the stateRoot of the parent)
-//   - reexec: The maximum number of blocks to reprocess trying to obtain the desired state
-//   - base: If the caller is tracing multiple blocks, the caller can provide the parent state
-//     continuously from the callsite.
-//   - checklive: if true, then the live 'blockchain' state database is used. If the caller want to
-//     perform Commit or other 'save-to-disk' changes, this should be set to false to avoid
-//     storing trash persistently
-//   - preferDisk: this arg can be used by the caller to signal that even though the 'base' is provided,
-//     it would be preferrable to start from a fresh state, if we have it on disk.
+// - block: The block for which we want the state (== state at the stateRoot of the parent)
+// - reexec: The maximum number of blocks to reprocess trying to obtain the desired state
+// - base: If the caller is tracing multiple blocks, the caller can provide the parent state
+//         continuously from the callsite.
+// - checklive: if true, then the live 'blockchain' state database is used. If the caller want to
+//        perform Commit or other 'save-to-disk' changes, this should be set to false to avoid
+//        storing trash persistently
+// - preferDisk: this arg can be used by the caller to signal that even though the 'base' is provided,
+//        it would be preferrable to start from a fresh state, if we have it on disk.
 func (eth *Ethereum) StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error) {
 	var (
 		current  *types.Block
@@ -64,7 +64,7 @@ func (eth *Ethereum) StateAtBlock(block *types.Block, reexec uint64, base *state
 	if base != nil {
 		if preferDisk {
 			// Create an ephemeral trie.Database for isolating the live one. Otherwise
-			// the internal junks created by tracing will be persisted into the disk.
+			// the exinternal junks created by tracing will be persisted into the disk.
 			database = state.NewDatabaseWithConfig(eth.chainDb, &trie.Config{Cache: 16})
 			if statedb, err = state.New(block.Root(), database, nil); err == nil {
 				log.Info("Found disk backend for state trie", "root", block.Root(), "number", block.Number())
@@ -82,7 +82,7 @@ func (eth *Ethereum) StateAtBlock(block *types.Block, reexec uint64, base *state
 		current = block
 
 		// Create an ephemeral trie.Database for isolating the live one. Otherwise
-		// the internal junks created by tracing will be persisted into the disk.
+		// the exinternal junks created by tracing will be persisted into the disk.
 		database = state.NewDatabaseWithConfig(eth.chainDb, &trie.Config{Cache: 16})
 
 		// If we didn't check the dirty database, do check the clean one, otherwise

@@ -43,10 +43,8 @@ The state transitioning model does all the necessary work to work out a valid ne
 3) Create a new state object if the recipient is \0*32
 4) Value transfer
 == If contract creation ==
-
-	4a) Attempt to run transaction data
-	4b) If valid, use result as code for the new state object
-
+  4a) Attempt to run transaction data
+  4b) If valid, use result as code for the new state object
 == end ==
 5) Run Script section
 6) Derive new state root
@@ -90,7 +88,7 @@ type ExecutionResult struct {
 	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
 
-// Unwrap returns the internal evm error which allows us for further
+// Unwrap returns the exinternal evm error which allows us for further
 // analysis outside.
 func (result *ExecutionResult) Unwrap() error {
 	return result.Err
@@ -265,13 +263,13 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the evm execution result with following fields.
 //
-//   - used gas:
-//     total gas used (including gas being refunded)
-//   - returndata:
-//     the returned data from evm
-//   - concrete execution error:
-//     various **EVM** error which aborts the execution,
-//     e.g. ErrOutOfGas, ErrExecutionReverted
+// - used gas:
+//      total gas used (including gas being refunded)
+// - returndata:
+//      the returned data from evm
+// - concrete execution error:
+//      various **EVM** error which aborts the execution,
+//      e.g. ErrOutOfGas, ErrExecutionReverted
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
@@ -290,32 +288,15 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if err := st.preCheck(); err != nil {
 		return nil, err
 	}
+	msg := st.msg
+	sender := vm.AccountRef(msg.From())
+	homestead := st.evm.ChainConfig().IsHomestead(st.evm.Context.BlockNumber)
+	istanbul := st.evm.ChainConfig().IsIstanbul(st.evm.Context.BlockNumber)
+	london := st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber)
+	contractCreation := msg.To() == nil
 
-	if st.evm.Config.Debug {
-		st.evm.Config.Tracer.CaptureTxStart(st.initialGas)
-		defer func() {
-			st.evm.Config.Tracer.CaptureTxEnd(st.gas)
-		}()
-	}
-
-	var (
-		msg              = st.msg
-		sender           = vm.AccountRef(msg.From())
-		rules            = st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil)
-		contractCreation = msg.To() == nil
-	)
-	if st.evm.ChainConfig().IsNano(st.evm.Context.BlockNumber) {
-		for _, blackListAddr := range types.NanoBlackList {
-			if blackListAddr == msg.From() {
-				return nil, fmt.Errorf("block blacklist account")
-			}
-			if msg.To() != nil && *msg.To() == blackListAddr {
-				return nil, fmt.Errorf("block blacklist account")
-			}
-		}
-	}
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
+	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, homestead, istanbul)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +311,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 
 	// Set up the initial access list.
-	if rules.IsBerlin {
+	if rules := st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil); rules.IsBerlin {
 		st.state.PrepareAccessList(msg.From(), msg.To(), vm.ActivePrecompiles(rules), msg.AccessList())
 	}
 	var (
@@ -345,7 +326,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 
-	if !rules.IsLondon {
+	if !london {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
 		st.refundGas(params.RefundQuotient)
 	} else {
@@ -358,7 +339,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		st.state.AddBalance(consensus.SystemAddress, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 	} else {
 		effectiveTip := st.gasPrice
-		if rules.IsLondon {
+		if london {
 			effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 		}
 		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))

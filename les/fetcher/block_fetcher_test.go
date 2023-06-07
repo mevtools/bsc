@@ -764,7 +764,7 @@ func TestEmptyBlockShortCircuit(t *testing.T) {
 	headerFetcher := tester.makeHeaderFetcher("valid", blocks, -gatherSlack)
 	bodyFetcher := tester.makeBodyFetcher("valid", blocks, 0)
 
-	// Add a monitoring hook for all internal events
+	// Add a monitoring hook for all exinternal events
 	fetching := make(chan []common.Hash)
 	tester.fetcher.fetchingHook = func(hashes []common.Hash) { fetching <- hashes }
 

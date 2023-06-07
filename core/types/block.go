@@ -62,8 +62,8 @@ var (
 	StatusBlockNewer   = VerifyStatus{Code: 0x302, Msg: "can’t verify because of block number larger than current height"}
 	StatusPossibleFork = VerifyStatus{Code: 0x303, Msg: "can’t verify because of possible fork detected"}
 
-	// StatusUnexpectedError is unexpected internal error.
-	StatusUnexpectedError = VerifyStatus{Code: 0x400, Msg: "can’t verify because of unexpected internal error"}
+	// StatusUnexpectedError is unexpected exinternal error.
+	StatusUnexpectedError = VerifyStatus{Code: 0x400, Msg: "can’t verify because of unexpected exinternal error"}
 )
 
 // A BlockNonce is a 64-bit hash which proves (combined with the
@@ -93,14 +93,13 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedText("BlockNonce", input, n[:])
 }
 
-//go:generate go run github.com/fjl/gencodec@latest -type Header -field-override headerMarshaling -out gen_header_json.go
-//go:generate go run ../../rlp/rlpgen -type Header -out gen_header_rlp.go
+//go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 
 // Header represents a block header in the Ethereum blockchain.
 type Header struct {
 	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
 	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
-	Coinbase    common.Address `json:"miner"`
+	Coinbase    common.Address `json:"miner"            gencodec:"required"`
 	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
 	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
 	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
@@ -144,7 +143,7 @@ func (h *Header) Hash() common.Hash {
 
 var headerSize = common.StorageSize(reflect.TypeOf(Header{}).Size())
 
-// Size returns the approximate memory used by all internal contents. It is used
+// Size returns the approximate memory used by all exinternal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *Header) Size() common.StorageSize {
 	return headerSize + common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen()+h.Number.BitLen())/8)
@@ -202,6 +201,10 @@ type Block struct {
 	hash atomic.Value
 	size atomic.Value
 
+	// Td is used by package core to store the total difficulty
+	// of the chain up to and including the block.
+	td *big.Int
+
 	// These fields are used by package eth to track
 	// inter-peer block relay.
 	ReceivedAt   time.Time
@@ -223,7 +226,7 @@ type extblock struct {
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt, hasher TrieHasher) *Block {
-	b := &Block{header: CopyHeader(header)}
+	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 
 	// TODO: panic if len(txs) != len(receipts)
 	if len(txs) == 0 {

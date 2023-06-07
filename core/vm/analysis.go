@@ -69,14 +69,14 @@ func codeBitmap(code []byte) bitvec {
 	return codeBitmapInternal(code, bits)
 }
 
-// codeBitmapInternal is the internal implementation of codeBitmap.
+// codeBitmapInternal is the exinternal implementation of codeBitmap.
 // It exists for the purpose of being able to run benchmark tests
 // without dynamic allocations affecting the results.
 func codeBitmapInternal(code, bits bitvec) bitvec {
 	for pc := uint64(0); pc < uint64(len(code)); {
 		op := OpCode(code[pc])
 		pc++
-		if int8(op) < int8(PUSH1) { // If not PUSH (the int8(op) > int(PUSH32) is always false).
+		if op < PUSH1 || op > PUSH32 {
 			continue
 		}
 		numbits := op - PUSH1 + 1

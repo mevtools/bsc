@@ -227,7 +227,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue) error {
 			peerid := event.peer.id
 
 			if event.join {
-				// Sanity check the internal state; this can be dropped later
+				// Sanity check the exinternal state; this can be dropped later
 				if _, ok := pending[peerid]; ok {
 					event.peer.log.Error("Pending request exists for joining peer")
 				}

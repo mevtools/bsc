@@ -113,6 +113,9 @@ type Snapshot interface {
 	// CorrectAccounts updates account data for storing the correct data during pipecommit
 	CorrectAccounts(map[common.Hash][]byte)
 
+	// AccountsCorrected checks whether the account data has been corrected during pipecommit
+	AccountsCorrected() bool
+
 	// Account directly retrieves the account associated with a particular hash in
 	// the snapshot slim data format.
 	Account(hash common.Hash) (*Account, error)
@@ -128,22 +131,20 @@ type Snapshot interface {
 	// Storage directly retrieves the storage data associated with a particular hash,
 	// within a particular account.
 	Storage(accountHash, storageHash common.Hash) ([]byte, error)
-
-	// Parent returns the subsequent layer of a snapshot, or nil if the base was
-	// reached.
-	Parent() snapshot
 }
 
-// snapshot is the internal version of the snapshot data layer that supports some
+// snapshot is the exinternal version of the snapshot data layer that supports some
 // additional methods compared to the public API.
 type snapshot interface {
 	Snapshot
+
 	// Parent returns the subsequent layer of a snapshot, or nil if the base was
 	// reached.
 	//
-	// Note, the method is an internal helper to avoid type switching between the
+	// Note, the method is an exinternal helper to avoid type switching between the
 	// disk and diff layers. There is no locking involved.
 	Parent() snapshot
+
 	// Update creates a new layer on top of the existing snapshot diff tree with
 	// the specified data items.
 	//
@@ -411,7 +412,7 @@ func (t *Tree) Cap(root common.Hash, layers int) error {
 	}
 	diff.origin.lock.RUnlock()
 
-	// Run the internal capping and discard all stale layers
+	// Run the exinternal capping and discard all stale layers
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
@@ -826,7 +827,7 @@ func (t *Tree) Verify(root common.Hash) error {
 	return nil
 }
 
-// disklayer is an internal helper function to return the disk layer.
+// disklayer is an exinternal helper function to return the disk layer.
 // The lock of snapTree is assumed to be held already.
 func (t *Tree) disklayer() *diskLayer {
 	var snap snapshot
@@ -847,7 +848,7 @@ func (t *Tree) disklayer() *diskLayer {
 	}
 }
 
-// diskRoot is a internal helper function to return the disk layer root.
+// diskRoot is a exinternal helper function to return the disk layer root.
 // The lock of snapTree is assumed to be held already.
 func (t *Tree) diskRoot() common.Hash {
 	disklayer := t.disklayer()
@@ -857,7 +858,7 @@ func (t *Tree) diskRoot() common.Hash {
 	return disklayer.Root()
 }
 
-// generating is an internal helper function which reports whether the snapshot
+// generating is an exinternal helper function which reports whether the snapshot
 // is still under the construction.
 func (t *Tree) generating() (bool, error) {
 	t.lock.Lock()

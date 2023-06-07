@@ -174,7 +174,7 @@ func main() {
 	if err != nil {
 		log.Crit("Failed to parse genesis config", "err", err)
 	}
-	// Convert the bootnodes to internal enode representations
+	// Convert the bootnodes to exinternal enode representations
 	var enodes []*enode.Node
 	for _, boot := range strings.Split(*bootFlag, ",") {
 		if url, err := enode.Parse(enode.ValidSchemes, boot); err == nil {
@@ -953,6 +953,10 @@ func getGenesis(genesisFlag *string, goerliFlag bool, rinkebyFlag bool) (*core.G
 		var genesis core.Genesis
 		err := common.LoadJSON(*genesisFlag, &genesis)
 		return &genesis, err
+	case goerliFlag:
+		return core.DefaultGoerliGenesisBlock(), nil
+	case rinkebyFlag:
+		return core.DefaultRinkebyGenesisBlock(), nil
 	default:
 		return nil, fmt.Errorf("no genesis flag provided")
 	}

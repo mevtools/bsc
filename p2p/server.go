@@ -89,12 +89,6 @@ type Config struct {
 	// Setting DialRatio to zero defaults it to 3.
 	DialRatio int `toml:",omitempty"`
 
-	// PERI_PEER_EVICTION_POLICY_CODE_PIECE
-	// When DialRatio = 1, all peers are outbound.
-	// This is usually less robust than leave a few inbound slots.
-	// Use this flag to set minimum inbound slots.
-	PeriMinInBound int
-
 	// NoDiscovery can be used to disable the peer discovery mechanism.
 	// Disabling is useful for protocol debugging (manual topology).
 	NoDiscovery bool
@@ -669,13 +663,6 @@ func (srv *Server) setupDialScheduler() {
 	}
 }
 
-// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-
-func (srv *Server) AddPeriInitialNodes(nodes []*enode.Node) {
-	srv.dialsched.wg.Add(1)
-	go srv.dialsched.readNodes(enode.IterNodes(nodes))
-}
-
 func (srv *Server) maxInboundConns() int {
 	return srv.MaxPeers - srv.maxDialedConns()
 }
@@ -990,8 +977,9 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 
 	// If dialing, figure out the remote public key.
+	var dialPubkey *ecdsa.PublicKey
 	if dialDest != nil {
-		dialPubkey := new(ecdsa.PublicKey)
+		dialPubkey = new(ecdsa.PublicKey)
 		if err := dialDest.Load((*enode.Secp256k1)(dialPubkey)); err != nil {
 			err = errors.New("dial destination doesn't have a secp256k1 public key")
 			srv.log.Trace("Setting up connection failed", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)

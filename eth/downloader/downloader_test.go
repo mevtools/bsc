@@ -60,7 +60,7 @@ func newTester() *downloadTester {
 	if err != nil {
 		panic(err)
 	}
-	db, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), freezer, "", false, false, false, false, true)
+	db, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), freezer, "", false, false, false, false)
 	if err != nil {
 		panic(err)
 	}
@@ -145,9 +145,6 @@ type downloadTesterPeer struct {
 	chain *core.BlockChain
 
 	withholdHeaders map[common.Hash]struct{}
-}
-
-func (dlp *downloadTesterPeer) MarkLagging() {
 }
 
 // Head constructs a function to retrieve a peer's current head hash
@@ -929,8 +926,8 @@ func testHighTDStarvationAttack(t *testing.T, protocol uint, mode SyncMode) {
 
 	chain := testChainBase.shorten(1)
 	tester.newPeer("attack", protocol, chain.blocks[1:])
-	if err := tester.sync("attack", big.NewInt(1000000), mode); err != errLaggingPeer {
-		t.Fatalf("synchronisation error mismatch: have %v, want %v", err, errLaggingPeer)
+	if err := tester.sync("attack", big.NewInt(1000000), mode); err != errStallingPeer {
+		t.Fatalf("synchronisation error mismatch: have %v, want %v", err, errStallingPeer)
 	}
 }
 
@@ -1238,26 +1235,9 @@ func testFakedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	pending.Wait()
 	afterFailedSync := tester.downloader.Progress()
 
-	// it is no longer valid to sync to a lagging peer
-	laggingChain := chain.shorten(800 / 2)
-	tester.newPeer("lagging", protocol, laggingChain.blocks[1:])
-	pending.Add(1)
-	go func() {
-		defer pending.Done()
-		if err := tester.sync("lagging", nil, mode); err != errLaggingPeer {
-			panic(fmt.Sprintf("unexpected lagging synchronisation err:%v", err))
-		}
-	}()
-	// lagging peer will return before syncInitHook, skip <-starting and progress <- struct{}{}
-	checkProgress(t, tester.downloader, "lagging", ethereum.SyncProgress{
-		CurrentBlock: afterFailedSync.CurrentBlock,
-		HighestBlock: uint64(len(chain.blocks) - 1),
-	})
-	pending.Wait()
-
-	// Synchronise with a good peer and check that the progress height has been increased to
+	// Synchronise with a good peer and check that the progress height has been reduced to
 	// the true value.
-	validChain := chain.shorten(len(chain.blocks))
+	validChain := chain.shorten(len(chain.blocks) - numMissing)
 	tester.newPeer("valid", protocol, validChain.blocks[1:])
 	pending.Add(1)
 

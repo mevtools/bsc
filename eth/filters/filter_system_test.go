@@ -106,10 +106,6 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 	return logs, nil
 }
 
-func (b *testBackend) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
-	return nil, nil
-}
-
 func (b *testBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
 	return b.txFeed.Subscribe(ch)
 }
@@ -305,15 +301,12 @@ func TestLogFilterCreation(t *testing.T) {
 	)
 
 	for i, test := range testCases {
-		id, err := api.NewFilter(test.crit)
-		if err != nil && test.success {
+		_, err := api.NewFilter(test.crit)
+		if test.success && err != nil {
 			t.Errorf("expected filter creation for case %d to success, got %v", i, err)
 		}
-		if err == nil {
-			api.UninstallFilter(id)
-			if !test.success {
-				t.Errorf("expected testcase %d to fail with an error", i)
-			}
+		if !test.success && err == nil {
+			t.Errorf("expected testcase %d to fail with an error", i)
 		}
 	}
 }
@@ -596,7 +589,7 @@ func TestPendingLogsSubscription(t *testing.T) {
 	// (some) events are posted.
 	for i := range testCases {
 		testCases[i].c = make(chan []*types.Log)
-		testCases[i].err = make(chan error, 1)
+		testCases[i].err = make(chan error)
 
 		var err error
 		testCases[i].sub, err = api.events.SubscribeLogs(testCases[i].crit, testCases[i].c)

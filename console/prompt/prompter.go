@@ -24,7 +24,7 @@ import (
 )
 
 // Stdin holds the stdin line reader (also using stdout for printing prompts).
-// Only this reader may be used for input because it keeps an internal buffer.
+// Only this reader may be used for input because it keeps an exinternal buffer.
 var Stdin = newTerminalPrompter()
 
 // UserPrompter defines the methods needed by the console to prompt the user for
@@ -143,7 +143,7 @@ func (p *terminalPrompter) PromptPassword(prompt string) (passwd string, err err
 // choice to be made, returning that choice.
 func (p *terminalPrompter) PromptConfirm(prompt string) (bool, error) {
 	input, err := p.Prompt(prompt + " [y/n] ")
-	if len(input) > 0 && strings.EqualFold(input[:1], "y") {
+	if len(input) > 0 && strings.ToUpper(input[:1]) == "Y" {
 		return true, nil
 	}
 	return false, err

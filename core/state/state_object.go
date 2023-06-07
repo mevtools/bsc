@@ -50,7 +50,7 @@ func (s Storage) String() (str string) {
 }
 
 func (s Storage) Copy() Storage {
-	cpy := make(Storage, len(s))
+	cpy := make(Storage)
 	for key, value := range s {
 		cpy[key] = value
 	}
@@ -238,10 +238,25 @@ func (s *StateObject) GetCommittedState(db Database, key common.Hash) common.Has
 	}
 	// If no live objects are available, attempt to use snapshots
 	var (
-		enc []byte
-		err error
+		enc   []byte
+		err   error
+		meter *time.Duration
 	)
+	readStart := time.Now()
+	if metrics.EnabledExpensive {
+		// If the snap is 'under construction', the first lookup may fail. If that
+		// happens, we don't want to double-count the time elapsed. Thus this
+		// dance with the metering.
+		defer func() {
+			if meter != nil {
+				*meter += time.Since(readStart)
+			}
+		}()
+	}
 	if s.db.snap != nil {
+		if metrics.EnabledExpensive {
+			meter = &s.db.SnapshotStorageReads
+		}
 		// If the object was destructed in *this* block (and potentially resurrected),
 		// the storage has been cleared out, and we should *not* consult the previous
 		// snapshot about any storage values. The only possible alternatives are:
@@ -251,24 +266,21 @@ func (s *StateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		if _, destructed := s.db.snapDestructs[s.address]; destructed {
 			return common.Hash{}
 		}
-		start := time.Now()
 		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
-		if metrics.EnabledExpensive {
-			s.db.SnapshotStorageReads += time.Since(start)
-		}
 	}
 
 	// If snapshot unavailable or reading from it failed, load from the database
 	if s.db.snap == nil || err != nil {
-		start := time.Now()
-		//		if metrics.EnabledExpensive {
-		//			meter = &s.db.StorageReads
-		//		}
-		enc, err = s.getTrie(db).TryGet(key.Bytes())
-		if metrics.EnabledExpensive {
-			s.db.StorageReads += time.Since(start)
+		if meter != nil {
+			// If we already spent time checking the snapshot, account for it
+			// and reset the readStart
+			*meter += time.Since(readStart)
+			readStart = time.Now()
 		}
-		if err != nil {
+		if metrics.EnabledExpensive {
+			meter = &s.db.StorageReads
+		}
+		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
 			s.setError(err)
 			return common.Hash{}
 		}
@@ -339,8 +351,18 @@ func (s *StateObject) finalise(prefetch bool) {
 		}
 	}
 
+	// The account root need to be updated before prefetch, otherwise the account root is empty
+	if s.db.pipeCommit && s.data.Root == dummyRoot && !s.rootCorrected && s.db.snap.AccountsCorrected() {
+		if acc, err := s.db.snap.Account(crypto.HashData(s.db.hasher, s.address.Bytes())); err == nil {
+			if acc != nil && len(acc.Root) != 0 {
+				s.data.Root = common.BytesToHash(acc.Root)
+				s.rootCorrected = true
+			}
+		}
+	}
+
 	prefetcher := s.db.prefetcher
-	if prefetcher != nil && prefetch && len(slotsToPrefetch) > 0 && s.data.Root != emptyRoot {
+	if prefetcher != nil && prefetch && len(slotsToPrefetch) > 0 && s.data.Root != emptyRoot && s.data.Root != dummyRoot {
 		prefetcher.prefetch(s.data.Root, slotsToPrefetch, s.addrHash)
 	}
 	if len(s.dirtyStorage) > 0 {

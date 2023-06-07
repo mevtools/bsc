@@ -27,6 +27,7 @@ func (cid CommitID) String() string {
 //----------------------------------------
 // CommitInfo
 
+// NOTE: Keep CommitInfo a simple immutable struct.
 type CommitInfo struct {
 
 	// Version
@@ -38,6 +39,7 @@ type CommitInfo struct {
 
 // Hash returns the simple merkle root hash of the stores sorted by name.
 func (ci CommitInfo) Hash() []byte {
+	// TODO cache to ci.hash []byte
 	m := make(map[string][]byte, len(ci.StoreInfos))
 	for _, storeInfo := range ci.StoreInfos {
 		m[storeInfo.Name] = storeInfo.Hash()
@@ -69,6 +71,7 @@ type StoreCore struct {
 	// ... maybe add more state
 }
 
+// Implements merkle.Hasher.
 func (si StoreInfo) Hash() []byte {
 	// Doesn't write Name, since merkle.SimpleHashFromMap() will
 	// include them via the keys.

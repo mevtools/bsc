@@ -140,7 +140,7 @@ func TestReqValueAdjustment(t *testing.T) {
 		exp := utils.ExpFactor(logOffset)
 		s1.updateRvFactor(ref.reqValueFactor(cost1))
 		s2.updateRvFactor(ref.reqValueFactor(cost2))
-		// throw in random requests into each basket using their internal pricing
+		// throw in random requests into each basket using their exinternal pricing
 		for i := 0; i < 1000; i++ {
 			reqType, reqAmount := uint32(rand.Intn(3)), uint32(rand.Intn(10)+1)
 			reqCost := uint64(reqAmount) * cost1[reqType]

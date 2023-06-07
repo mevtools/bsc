@@ -18,89 +18,66 @@ import (
 // MarshalTOML marshals as TOML.
 func (c Config) MarshalTOML() (interface{}, error) {
 	type Config struct {
-		Genesis                         *core.Genesis `toml:",omitempty"`
-		NetworkId                       uint64
-		SyncMode                        downloader.SyncMode
-		DisablePeerTxBroadcast          bool
-		EthDiscoveryURLs                []string
-		SnapDiscoveryURLs               []string
-		TrustDiscoveryURLs              []string
-		NoPruning                       bool
-		DirectBroadcast                 bool
-		DisableSnapProtocol             bool
-		DisableDiffProtocol             bool
-		EnableTrustProtocol             bool
-		DiffSync                        bool
-		PipeCommit                      bool
-		RangeLimit                      bool
-		TxLookupLimit                   uint64                 `toml:",omitempty"`
-		Whitelist                       map[uint64]common.Hash `toml:"-"`
-		LightServ                       int                    `toml:",omitempty"`
-		LightIngress                    int                    `toml:",omitempty"`
-		LightEgress                     int                    `toml:",omitempty"`
-		LightPeers                      int                    `toml:",omitempty"`
-		LightNoPrune                    bool                   `toml:",omitempty"`
-		LightNoSyncServe                bool                   `toml:",omitempty"`
-		SyncFromCheckpoint              bool                   `toml:",omitempty"`
-		UltraLightServers               []string               `toml:",omitempty"`
-		UltraLightFraction              int                    `toml:",omitempty"`
-		UltraLightOnlyAnnounce          bool                   `toml:",omitempty"`
-		SkipBcVersionCheck              bool                   `toml:"-"`
-		DatabaseHandles                 int                    `toml:"-"`
-		DatabaseCache                   int
-		DatabaseFreezer                 string
-		DatabaseDiff                    string
-		PersistDiff                     bool
-		DiffBlock                       uint64
-		PruneAncientData                bool
-		TrieCleanCache                  int
-		TrieCleanCacheJournal           string        `toml:",omitempty"`
-		TrieCleanCacheRejournal         time.Duration `toml:",omitempty"`
-		TrieDirtyCache                  int
-		TrieTimeout                     time.Duration
-		SnapshotCache                   int
-		TriesInMemory                   uint64
-		TriesVerifyMode                 core.VerifyMode
-		Preimages                       bool
-		Miner                           miner.Config
-		Ethash                          ethash.Config `toml:",omitempty"`
-		TxPool                          core.TxPoolConfig
-		GPO                             gasprice.Config
-		EnablePreimageRecording         bool
-		DocRoot                         string `toml:"-"`
-		RPCGasCap                       uint64
-		RPCEVMTimeout                   time.Duration
-		RPCTxFeeCap                     float64
-		Checkpoint                      *params.TrustedCheckpoint      `toml:",omitempty"`
-		CheckpointOracle                *params.CheckpointOracleConfig `toml:",omitempty"`
-		OverrideBerlin                  *big.Int                       `toml:",omitempty"`
+		Genesis                 *core.Genesis `toml:",omitempty"`
+		NetworkId               uint64
+		SyncMode                downloader.SyncMode
+		DisablePeerTxBroadcast  bool
+		EthDiscoveryURLs        []string
+		SnapDiscoveryURLs       []string
+		TrustDiscoveryURLs      []string
+		NoPruning               bool
+		NoPrefetch              bool
+		DirectBroadcast         bool
+		DisableSnapProtocol     bool
+		DisableDiffProtocol     bool
+		EnableTrustProtocol     bool
+		DiffSync                bool
+		RangeLimit              bool
+		TxLookupLimit           uint64                 `toml:",omitempty"`
+		Whitelist               map[uint64]common.Hash `toml:"-"`
+		LightServ               int                    `toml:",omitempty"`
+		LightIngress            int                    `toml:",omitempty"`
+		LightEgress             int                    `toml:",omitempty"`
+		LightPeers              int                    `toml:",omitempty"`
+		LightNoPrune            bool                   `toml:",omitempty"`
+		LightNoSyncServe        bool                   `toml:",omitempty"`
+		SyncFromCheckpoint      bool                   `toml:",omitempty"`
+		UltraLightServers       []string               `toml:",omitempty"`
+		UltraLightFraction      int                    `toml:",omitempty"`
+		UltraLightOnlyAnnounce  bool                   `toml:",omitempty"`
+		SkipBcVersionCheck      bool                   `toml:"-"`
+		DatabaseHandles         int                    `toml:"-"`
+		DatabaseCache           int
+		DatabaseFreezer         string
+		DatabaseDiff            string
+		TrieCleanCache          int
+		TrieCleanCacheJournal   string        `toml:",omitempty"`
+		TrieCleanCacheRejournal time.Duration `toml:",omitempty"`
+		TrieDirtyCache          int
+		TrieTimeout             time.Duration
+		SnapshotCache           int
+		TriesInMemory           uint64
+		TriesVerifyMode         core.VerifyMode
+		Preimages               bool
+		PersistDiff             bool
+		DiffBlock               uint64 `toml:",omitempty"`
+		PruneAncientData        bool
+		Miner                   miner.Config
+		Ethash                  ethash.Config `toml:",omitempty"`
+		TxPool                  core.TxPoolConfig
+		GPO                     gasprice.Config
+		EnablePreimageRecording bool
+		DocRoot                 string `toml:"-"`
+		EWASMInterpreter        string
+		EVMInterpreter          string
+		RPCGasCap               uint64
+		RPCEVMTimeout           time.Duration
+		RPCTxFeeCap             float64
+		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
+		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
+		OverrideBerlin          *big.Int                       `toml:",omitempty"`
 		OverrideArrowGlacier            *big.Int                       `toml:",omitempty"`
 		OverrideTerminalTotalDifficulty *big.Int                       `toml:",omitempty"`
-		PeriActive                      bool
-		PeriPeriod                      uint64
-		PeriReplaceRatio                float64
-		PeriBlockNodeRatio              float64
-		PeriTxNodeRatio                 float64
-		PeriMinInbound                  int
-		PeriMaxDelayPenalty             uint64
-		PeriAnnouncePenalty             uint64
-		PeriMaxDeliveryTolerance        int64
-		PeriObservedTxRatio             int
-		PeriTargeted                    bool
-		PeriShowTxDelivery              bool
-		PeriTargetAccountList           []string
-		PeriNoPeerIPList                []string
-		PeriNoDropList                  []string
-		PeriMaxTransactionAmount        int
-		PeriMaxBlockAmount              int
-		PeriLogFilePath                 string
-		PeriDataDirectory               string
-		PeriBroadcast                   bool
-		PeriPeersIp                     []string
-		PeriApproachMiners              bool
-		DisguiseServerUrl               string
-		DisguiseServerX509CertFile      string
-		DisguiseServerX509KeyFile       string
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -116,7 +93,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.DisableDiffProtocol = c.DisableDiffProtocol
 	enc.EnableTrustProtocol = c.EnableTrustProtocol
 	enc.DiffSync = c.DiffSync
-	enc.PipeCommit = c.PipeCommit
 	enc.RangeLimit = c.RangeLimit
 	enc.TxLookupLimit = c.TxLookupLimit
 	enc.Whitelist = c.Whitelist
@@ -137,7 +113,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.DatabaseDiff = c.DatabaseDiff
 	enc.PersistDiff = c.PersistDiff
 	enc.DiffBlock = c.DiffBlock
-	enc.PruneAncientData = c.PruneAncientData
 	enc.TrieCleanCache = c.TrieCleanCache
 	enc.TrieCleanCacheJournal = c.TrieCleanCacheJournal
 	enc.TrieCleanCacheRejournal = c.TrieCleanCacheRejournal
@@ -147,6 +122,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.TriesInMemory = c.TriesInMemory
 	enc.TriesVerifyMode = c.TriesVerifyMode
 	enc.Preimages = c.Preimages
+	enc.PersistDiff = c.PersistDiff
+	enc.DiffBlock = c.DiffBlock
+	enc.PruneAncientData = c.PruneAncientData
 	enc.Miner = c.Miner
 	enc.Ethash = c.Ethash
 	enc.TxPool = c.TxPool
@@ -161,120 +139,72 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.OverrideBerlin = c.OverrideBerlin
 	enc.OverrideArrowGlacier = c.OverrideArrowGlacier
 	enc.OverrideTerminalTotalDifficulty = c.OverrideTerminalTotalDifficulty
-	enc.PeriActive = c.PeriActive
-	enc.PeriPeriod = c.PeriPeriod
-	enc.PeriReplaceRatio = c.PeriReplaceRatio
-	enc.PeriBlockNodeRatio = c.PeriBlockNodeRatio
-	enc.PeriTxNodeRatio = c.PeriTxNodeRatio
-	enc.PeriMinInbound = c.PeriMinInbound
-	enc.PeriMaxDelayPenalty = c.PeriMaxDelayPenalty
-	enc.PeriAnnouncePenalty = c.PeriAnnouncePenalty
-	enc.PeriMaxDeliveryTolerance = c.PeriMaxDeliveryTolerance
-	enc.PeriObservedTxRatio = c.PeriObservedTxRatio
-	enc.PeriTargeted = c.PeriTargeted
-	enc.PeriShowTxDelivery = c.PeriShowTxDelivery
-	enc.PeriTargetAccountList = c.PeriTargetAccountList
-	enc.PeriNoPeerIPList = c.PeriNoPeerIPList
-	enc.PeriNoDropList = c.PeriNoDropList
-	enc.PeriMaxTransactionAmount = c.PeriMaxTransactionAmount
-	enc.PeriMaxBlockAmount = c.PeriMaxBlockAmount
-	enc.PeriLogFilePath = c.PeriLogFilePath
-	enc.PeriDataDirectory = c.PeriDataDirectory
-	enc.PeriBroadcast = c.PeriBroadcast
-	enc.PeriPeersIp = c.PeriPeersIp
-	enc.PeriApproachMiners = c.PeriApproachMiners
-	enc.DisguiseServerUrl = c.DisguiseServerUrl
-	enc.DisguiseServerX509CertFile = c.DisguiseServerX509CertFile
-	enc.DisguiseServerX509KeyFile = c.DisguiseServerX509KeyFile
 	return &enc, nil
 }
 
 // UnmarshalTOML unmarshals from TOML.
 func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	type Config struct {
-		Genesis                         *core.Genesis `toml:",omitempty"`
-		NetworkId                       *uint64
-		SyncMode                        *downloader.SyncMode
-		DisablePeerTxBroadcast          *bool
-		EthDiscoveryURLs                []string
-		SnapDiscoveryURLs               []string
-		TrustDiscoveryURLs              []string
-		NoPruning                       *bool
-		DirectBroadcast                 *bool
-		DisableSnapProtocol             *bool
-		DisableDiffProtocol             *bool
-		EnableTrustProtocol             *bool
-		DiffSync                        *bool
-		PipeCommit                      *bool
-		RangeLimit                      *bool
-		TxLookupLimit                   *uint64                `toml:",omitempty"`
-		Whitelist                       map[uint64]common.Hash `toml:"-"`
-		LightServ                       *int                   `toml:",omitempty"`
-		LightIngress                    *int                   `toml:",omitempty"`
-		LightEgress                     *int                   `toml:",omitempty"`
-		LightPeers                      *int                   `toml:",omitempty"`
-		LightNoPrune                    *bool                  `toml:",omitempty"`
-		LightNoSyncServe                *bool                  `toml:",omitempty"`
-		SyncFromCheckpoint              *bool                  `toml:",omitempty"`
-		UltraLightServers               []string               `toml:",omitempty"`
-		UltraLightFraction              *int                   `toml:",omitempty"`
-		UltraLightOnlyAnnounce          *bool                  `toml:",omitempty"`
-		SkipBcVersionCheck              *bool                  `toml:"-"`
-		DatabaseHandles                 *int                   `toml:"-"`
-		DatabaseCache                   *int
-		DatabaseFreezer                 *string
-		DatabaseDiff                    *string
-		PersistDiff                     *bool
-		DiffBlock                       *uint64
-		PruneAncientData                *bool
-		TrieCleanCache                  *int
-		TrieCleanCacheJournal           *string        `toml:",omitempty"`
-		TrieCleanCacheRejournal         *time.Duration `toml:",omitempty"`
-		TrieDirtyCache                  *int
-		TrieTimeout                     *time.Duration
-		SnapshotCache                   *int
-		TriesInMemory                   *uint64
-		TriesVerifyMode                 *core.VerifyMode
-		Preimages                       *bool
-		Miner                           *miner.Config
-		Ethash                          *ethash.Config `toml:",omitempty"`
-		TxPool                          *core.TxPoolConfig
-		GPO                             *gasprice.Config
-		EnablePreimageRecording         *bool
-		DocRoot                         *string `toml:"-"`
-		RPCGasCap                       *uint64
+		Genesis                 *core.Genesis `toml:",omitempty"`
+		NetworkId               *uint64
+		SyncMode                *downloader.SyncMode
+		DisablePeerTxBroadcast  *bool
+		EthDiscoveryURLs        []string
+		SnapDiscoveryURLs       []string
+		TrustDiscoveryURLs      []string
+		NoPruning               *bool
+		NoPrefetch              *bool
+		DirectBroadcast         *bool
+		DisableSnapProtocol     *bool
+		DisableDiffProtocol     *bool
+		EnableTrustProtocol     *bool
+		DiffSync                *bool
+		RangeLimit              *bool
+		TxLookupLimit           *uint64                `toml:",omitempty"`
+		Whitelist               map[uint64]common.Hash `toml:"-"`
+		LightServ               *int                   `toml:",omitempty"`
+		LightIngress            *int                   `toml:",omitempty"`
+		LightEgress             *int                   `toml:",omitempty"`
+		LightPeers              *int                   `toml:",omitempty"`
+		LightNoPrune            *bool                  `toml:",omitempty"`
+		LightNoSyncServe        *bool                  `toml:",omitempty"`
+		SyncFromCheckpoint      *bool                  `toml:",omitempty"`
+		UltraLightServers       []string               `toml:",omitempty"`
+		UltraLightFraction      *int                   `toml:",omitempty"`
+		UltraLightOnlyAnnounce  *bool                  `toml:",omitempty"`
+		SkipBcVersionCheck      *bool                  `toml:"-"`
+		DatabaseHandles         *int                   `toml:"-"`
+		DatabaseCache           *int
+		DatabaseFreezer         *string
+		DatabaseDiff            *string
+		PersistDiff             *bool
+		DiffBlock               *uint64 `toml:",omitempty"`
+		PruneAncientData        *bool
+		TrieCleanCache          *int
+		TrieCleanCacheJournal   *string        `toml:",omitempty"`
+		TrieCleanCacheRejournal *time.Duration `toml:",omitempty"`
+		TrieDirtyCache          *int
+		TrieTimeout             *time.Duration
+		SnapshotCache           *int
+		TriesInMemory           *uint64
+		TriesVerifyMode         *core.VerifyMode
+		Preimages               *bool
+		Miner                   *miner.Config
+		Ethash                  *ethash.Config `toml:",omitempty"`
+		TxPool                  *core.TxPoolConfig
+		GPO                     *gasprice.Config
+		EnablePreimageRecording *bool
+		DocRoot                 *string `toml:"-"`
+		EWASMInterpreter        *string
+		EVMInterpreter          *string
+		RPCGasCap               *uint64
 		RPCEVMTimeout                   *time.Duration
-		RPCTxFeeCap                     *float64
-		Checkpoint                      *params.TrustedCheckpoint      `toml:",omitempty"`
-		CheckpointOracle                *params.CheckpointOracleConfig `toml:",omitempty"`
-		OverrideBerlin                  *big.Int                       `toml:",omitempty"`
+		RPCTxFeeCap             *float64
+		Checkpoint              *params.TrustedCheckpoint      `toml:",omitempty"`
+		CheckpointOracle        *params.CheckpointOracleConfig `toml:",omitempty"`
+		OverrideBerlin          *big.Int                       `toml:",omitempty"`
 		OverrideArrowGlacier            *big.Int                       `toml:",omitempty"`
 		OverrideTerminalTotalDifficulty *big.Int                       `toml:",omitempty"`
-		PeriActive                      *bool
-		PeriPeriod                      *uint64
-		PeriReplaceRatio                *float64
-		PeriBlockNodeRatio              *float64
-		PeriTxNodeRatio                 *float64
-		PeriMinInbound                  *int
-		PeriMaxDelayPenalty             *uint64
-		PeriAnnouncePenalty             *uint64
-		PeriMaxDeliveryTolerance        *int64
-		PeriObservedTxRatio             *int
-		PeriTargeted                    *bool
-		PeriShowTxDelivery              *bool
-		PeriTargetAccountList           []string
-		PeriNoPeerIPList                []string
-		PeriNoDropList                  []string
-		PeriMaxTransactionAmount        *int
-		PeriMaxBlockAmount              *int
-		PeriLogFilePath                 *string
-		PeriDataDirectory               *string
-		PeriBroadcast                   *bool
-		PeriPeersIp                     []string
-		PeriApproachMiners              *bool
-		DisguiseServerUrl               *string
-		DisguiseServerX509CertFile      *string
-		DisguiseServerX509KeyFile       *string
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -318,9 +248,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.DiffSync != nil {
 		c.DiffSync = *dec.DiffSync
-	}
-	if dec.PipeCommit != nil {
-		c.PipeCommit = *dec.PipeCommit
 	}
 	if dec.RangeLimit != nil {
 		c.RangeLimit = *dec.RangeLimit
@@ -453,81 +380,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.OverrideTerminalTotalDifficulty != nil {
 		c.OverrideTerminalTotalDifficulty = dec.OverrideTerminalTotalDifficulty
-	}
-	if dec.PeriActive != nil {
-		c.PeriActive = *dec.PeriActive
-	}
-	if dec.PeriPeriod != nil {
-		c.PeriPeriod = *dec.PeriPeriod
-	}
-	if dec.PeriReplaceRatio != nil {
-		c.PeriReplaceRatio = *dec.PeriReplaceRatio
-	}
-	if dec.PeriBlockNodeRatio != nil {
-		c.PeriBlockNodeRatio = *dec.PeriBlockNodeRatio
-	}
-	if dec.PeriTxNodeRatio != nil {
-		c.PeriTxNodeRatio = *dec.PeriTxNodeRatio
-	}
-	if dec.PeriMinInbound != nil {
-		c.PeriMinInbound = *dec.PeriMinInbound
-	}
-	if dec.PeriMaxDelayPenalty != nil {
-		c.PeriMaxDelayPenalty = *dec.PeriMaxDelayPenalty
-	}
-	if dec.PeriAnnouncePenalty != nil {
-		c.PeriAnnouncePenalty = *dec.PeriAnnouncePenalty
-	}
-	if dec.PeriMaxDeliveryTolerance != nil {
-		c.PeriMaxDeliveryTolerance = *dec.PeriMaxDeliveryTolerance
-	}
-	if dec.PeriObservedTxRatio != nil {
-		c.PeriObservedTxRatio = *dec.PeriObservedTxRatio
-	}
-	if dec.PeriTargeted != nil {
-		c.PeriTargeted = *dec.PeriTargeted
-	}
-	if dec.PeriShowTxDelivery != nil {
-		c.PeriShowTxDelivery = *dec.PeriShowTxDelivery
-	}
-	if dec.PeriTargetAccountList != nil {
-		c.PeriTargetAccountList = dec.PeriTargetAccountList
-	}
-	if dec.PeriNoPeerIPList != nil {
-		c.PeriNoPeerIPList = dec.PeriNoPeerIPList
-	}
-	if dec.PeriNoDropList != nil {
-		c.PeriNoDropList = dec.PeriNoDropList
-	}
-	if dec.PeriMaxTransactionAmount != nil {
-		c.PeriMaxTransactionAmount = *dec.PeriMaxTransactionAmount
-	}
-	if dec.PeriMaxBlockAmount != nil {
-		c.PeriMaxBlockAmount = *dec.PeriMaxBlockAmount
-	}
-	if dec.PeriLogFilePath != nil {
-		c.PeriLogFilePath = *dec.PeriLogFilePath
-	}
-	if dec.PeriDataDirectory != nil {
-		c.PeriDataDirectory = *dec.PeriDataDirectory
-	}
-	if dec.PeriBroadcast != nil {
-		c.PeriBroadcast = *dec.PeriBroadcast
-	}
-	if dec.PeriPeersIp != nil {
-		c.PeriPeersIp = dec.PeriPeersIp
-	}
-	if dec.PeriApproachMiners != nil {
-		c.PeriApproachMiners = *dec.PeriApproachMiners
-	}
-	if dec.DisguiseServerUrl != nil {
-		c.DisguiseServerUrl = *dec.DisguiseServerUrl
-	}
-	if dec.DisguiseServerX509CertFile != nil {
-		c.DisguiseServerX509CertFile = *dec.DisguiseServerX509CertFile
-	}
-	if dec.DisguiseServerX509KeyFile != nil {
-		c.DisguiseServerX509KeyFile = *dec.DisguiseServerX509KeyFile
 	}
 	return nil
 }

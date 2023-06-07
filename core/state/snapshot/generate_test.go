@@ -234,12 +234,10 @@ func (t *testHelper) Generate() (common.Hash, *diskLayer) {
 //   - miss in the beginning
 //   - miss in the middle
 //   - miss in the end
-//
 // - the contract(non-empty storage) has wrong storage slots
 //   - wrong slots in the beginning
 //   - wrong slots in the middle
 //   - wrong slots in the end
-//
 // - the contract(non-empty storage) has extra storage slots
 //   - extra slots in the beginning
 //   - extra slots in the middle
@@ -418,7 +416,7 @@ func TestGenerateCorruptAccountTrie(t *testing.T) {
 }
 
 // Tests that snapshot generation errors out correctly in case of a missing root
-// trie node for a storage trie. It's similar to internal corruption but it is
+// trie node for a storage trie. It's similar to exinternal corruption but it is
 // handled differently inside the generator.
 func TestGenerateMissingStorageTrie(t *testing.T) {
 	// We can't use statedb to make a test trie (circular dependency), so make

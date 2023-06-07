@@ -34,8 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/internal/shutdowncheck"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/shutdowncheck"
 	"github.com/ethereum/go-ethereum/les/downloader"
 	"github.com/ethereum/go-ethereum/les/vflux"
 	vfc "github.com/ethereum/go-ethereum/les/vflux/client"
@@ -341,7 +341,7 @@ func (s *LightEthereum) Protocols() []p2p.Protocol {
 	}, s.serverPoolIterator)
 }
 
-// Start implements node.Lifecycle, starting all internal goroutines needed by the
+// Start implements node.Lifecycle, starting all exinternal goroutines needed by the
 // light ethereum protocol implementation.
 func (s *LightEthereum) Start() error {
 	log.Warn("Light client mode is an experimental feature")
@@ -367,7 +367,7 @@ func (s *LightEthereum) Start() error {
 	return nil
 }
 
-// Stop implements node.Lifecycle, terminating all internal goroutines used by the
+// Stop implements node.Lifecycle, terminating all exinternal goroutines used by the
 // Ethereum protocol.
 func (s *LightEthereum) Stop() error {
 	close(s.closeCh)

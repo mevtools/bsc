@@ -39,9 +39,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -215,11 +214,11 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect: &logger.ExecutionResult{
+			expect: &ethapi.ExecutionResult{
 				Gas:         params.TxGas,
 				Failed:      false,
 				ReturnValue: "",
-				StructLogs:  []logger.StructLogRes{},
+				StructLogs:  []ethapi.StructLogRes{},
 			},
 		},
 		// Standard JSON trace upon the head, plain transfer.
@@ -232,11 +231,11 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect: &logger.ExecutionResult{
+			expect: &ethapi.ExecutionResult{
 				Gas:         params.TxGas,
 				Failed:      false,
 				ReturnValue: "",
-				StructLogs:  []logger.StructLogRes{},
+				StructLogs:  []ethapi.StructLogRes{},
 			},
 		},
 		// Standard JSON trace upon the non-existent block, error expects
@@ -261,11 +260,11 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect: &logger.ExecutionResult{
+			expect: &ethapi.ExecutionResult{
 				Gas:         params.TxGas,
 				Failed:      false,
 				ReturnValue: "",
-				StructLogs:  []logger.StructLogRes{},
+				StructLogs:  []ethapi.StructLogRes{},
 			},
 		},
 		// Standard JSON trace upon the pending block
@@ -278,11 +277,11 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect: &logger.ExecutionResult{
+			expect: &ethapi.ExecutionResult{
 				Gas:         params.TxGas,
 				Failed:      false,
 				ReturnValue: "",
-				StructLogs:  []logger.StructLogRes{},
+				StructLogs:  []ethapi.StructLogRes{},
 			},
 		},
 	}
@@ -301,12 +300,8 @@ func TestTraceCall(t *testing.T) {
 				t.Errorf("Expect no error, get %v", err)
 				continue
 			}
-			var have *logger.ExecutionResult
-			if err := json.Unmarshal(result.(json.RawMessage), &have); err != nil {
-				t.Errorf("failed to unmarshal result %v", err)
-			}
-			if !reflect.DeepEqual(have, testspec.expect) {
-				t.Errorf("Result mismatch, want %v, get %v", testspec.expect, have)
+			if !reflect.DeepEqual(result, testspec.expect) {
+				t.Errorf("Result mismatch, want %v, get %v", testspec.expect, result)
 			}
 		}
 	}
@@ -335,15 +330,11 @@ func TestTraceTransaction(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to trace transaction %v", err)
 	}
-	var have *logger.ExecutionResult
-	if err := json.Unmarshal(result.(json.RawMessage), &have); err != nil {
-		t.Errorf("failed to unmarshal result %v", err)
-	}
-	if !reflect.DeepEqual(have, &logger.ExecutionResult{
+	if !reflect.DeepEqual(result, &ethapi.ExecutionResult{
 		Gas:         params.TxGas,
 		Failed:      false,
 		ReturnValue: "",
-		StructLogs:  []logger.StructLogRes{},
+		StructLogs:  []ethapi.StructLogRes{},
 	}) {
 		t.Error("Transaction tracing result is different")
 	}

@@ -30,9 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
-//PERI_AND_LATENCY_RECORDER_CODE_PIECE
-var peri *Peri = nil
-
 // ethHandler implements the eth.Backend interface to handle the various network
 // packets that are sent as replies or broadcasts.
 type ethHandler handler
@@ -66,36 +63,18 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	switch packet := packet.(type) {
 	case *eth.NewBlockHashesPacket:
 		hashes, numbers := packet.Unpack()
-		if peri != nil {
-			peri.recordBlockAnnounces(peer, hashes, numbers, true)
-		}
 		return h.handleBlockAnnounces(peer, hashes, numbers)
 
 	case *eth.NewBlockPacket:
-		if peri != nil {
-			peri.recordBlockBody(peer, packet.Block)
-			//peri.broadcastBlockToPioplatPeer(peer, packet.Block, packet.TD)
-		}
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
 
 	case *eth.NewPooledTransactionHashesPacket:
-		if peri != nil {
-			peri.recordTransactionAnnounces(peer, *packet, true)
-		}
 		return h.txFetcher.Notify(peer.ID(), *packet)
 
 	case *eth.TransactionsPacket:
-		if peri != nil {
-			peri.recordTransactionBody(peer, *packet)
-			//peri.broadcastTransactionsToPioplatPeer(*packet)
-		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, false)
 
 	case *eth.PooledTransactionsPacket:
-		if peri != nil {
-			peri.recordTransactionBody(peer, *packet)
-			//peri.broadcastTransactionsToPioplatPeer(*packet)
-		}
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 	default:
 		return fmt.Errorf("unexpected eth packet type: %T", packet)

@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/filters"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -63,8 +63,6 @@ func (b *Long) UnmarshalGraphQL(input interface{}) error {
 	case int32:
 		*b = Long(input)
 	case int64:
-		*b = Long(input)
-	case float64:
 		*b = Long(input)
 	default:
 		err = fmt.Errorf("unexpected type %T for Long", input)
@@ -102,14 +100,6 @@ func (a *Account) Balance(ctx context.Context) (hexutil.Big, error) {
 }
 
 func (a *Account) TransactionCount(ctx context.Context) (hexutil.Uint64, error) {
-	// Ask transaction pool for the nonce which includes pending transactions
-	if blockNr, ok := a.blockNrOrHash.Number(); ok && blockNr == rpc.PendingBlockNumber {
-		nonce, err := a.backend.GetPoolNonce(ctx, a.address)
-		if err != nil {
-			return 0, err
-		}
-		return hexutil.Uint64(nonce), nil
-	}
 	state, err := a.getState(ctx)
 	if err != nil {
 		return 0, err
@@ -188,7 +178,7 @@ type Transaction struct {
 	index   uint64
 }
 
-// resolve returns the internal transaction object, fetching it if needed.
+// resolve returns the exinternal transaction object, fetching it if needed.
 func (t *Transaction) resolve(ctx context.Context) (*types.Transaction, error) {
 	if t.tx == nil {
 		// Try to return an already finalized transaction
@@ -501,7 +491,7 @@ type Block struct {
 	receipts     []*types.Receipt
 }
 
-// resolve returns the internal Block object representing this block, fetching
+// resolve returns the exinternal Block object representing this block, fetching
 // it if necessary.
 func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 	if b.block != nil {
@@ -522,7 +512,7 @@ func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 	return b.block, err
 }
 
-// resolveHeader returns the internal Header object for this block, fetching it
+// resolveHeader returns the exinternal Header object for this block, fetching it
 // if necessary. Call this function instead of `resolve` unless you need the
 // additional data (transactions and uncles).
 func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
@@ -1188,7 +1178,7 @@ type FilterCriteria struct {
 }
 
 func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria }) ([]*Log, error) {
-	// Convert the RPC block numbers into internal representations
+	// Convert the RPC block numbers into exinternal representations
 	begin := rpc.LatestBlockNumber.Int64()
 	if args.Filter.FromBlock != nil {
 		begin = int64(*args.Filter.FromBlock)

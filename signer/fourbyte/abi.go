@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// decodedCallData is an internal type to represent a method call parsed according
+// decodedCallData is an exinternal type to represent a method call parsed according
 // to an ABI method signature.
 type decodedCallData struct {
 	signature string
@@ -35,7 +35,7 @@ type decodedCallData struct {
 	inputs    []decodedArgument
 }
 
-// decodedArgument is an internal type to represent an argument parsed according
+// decodedArgument is an exinternal type to represent an argument parsed according
 // to an ABI method signature.
 type decodedArgument struct {
 	soltype abi.Argument

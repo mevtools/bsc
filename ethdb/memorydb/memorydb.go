@@ -61,7 +61,7 @@ func NewWithCap(size int) *Database {
 	}
 }
 
-// Close deallocates the internal map and ensures any consecutive data access op
+// Close deallocates the exinternal map and ensures any consecutive data access op
 // failes with an error.
 func (db *Database) Close() error {
 	db.lock.Lock()
@@ -129,13 +129,6 @@ func (db *Database) NewBatch() ethdb.Batch {
 	}
 }
 
-// NewBatchWithSize creates a write-only database batch with pre-allocated buffer.
-func (db *Database) NewBatchWithSize(size int) ethdb.Batch {
-	return &batch{
-		db: db,
-	}
-}
-
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
@@ -170,7 +163,7 @@ func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
 	}
 }
 
-// Stat returns a particular internal stat of the database.
+// Stat returns a particular exinternal stat of the database.
 func (db *Database) Stat(property string) (string, error) {
 	return "", errors.New("unknown property")
 }

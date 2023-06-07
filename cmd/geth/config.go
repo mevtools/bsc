@@ -33,7 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
@@ -149,7 +149,6 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 	applyMetricConfig(ctx, &cfg)
 
-	log.Info("load peri peer eviction policy config", "PeriActive", cfg.Eth.PeriActive, "p2p.PeriMinInBound", stack.Server().PeriMinInBound)
 	return stack, cfg
 }
 
@@ -175,11 +174,6 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
 	}
-
-	utils.SetupMetrics(ctx,
-		utils.EnableBuildInfo(gitCommit, gitDate),
-		utils.EnableMinerInfo(ctx, cfg.Eth.Miner),
-	)
 	return stack, backend
 }
 

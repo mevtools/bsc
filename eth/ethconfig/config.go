@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
@@ -96,9 +96,6 @@ var Defaults = Config{
 	RPCEVMTimeout: 5 * time.Second,
 	GPO:           FullNodeGPO,
 	RPCTxFeeCap:   1, // 1 ether
-
-	// PERI_PEER_EVICTION_POLICY_CODE_PIECE
-	PeriActive: false,
 }
 
 func init() {
@@ -131,15 +128,8 @@ type Config struct {
 	Genesis *core.Genesis `toml:",omitempty"`
 
 	// Protocol options
-	NetworkId uint64 // Network ID to use for selecting peers to connect to
-	SyncMode  downloader.SyncMode
-
-	// DisablePeerTxBroadcast is an optional config and disabled by default, and usually you do not need it.
-	// When this flag is enabled, you are requesting remote peers to stop broadcasting new transactions to you, and
-	// it does not mean that your node will stop broadcasting transactions to remote peers.
-	// If your node does care about new mempool transactions (e.g., running rpc services without the need of mempool
-	// transactions) or is continuously under high pressure (e.g., mempool is always full), then you can consider
-	// to turn it on.
+	NetworkId              uint64 // Network ID to use for selecting peers to connect to
+	SyncMode               downloader.SyncMode
 	DisablePeerTxBroadcast bool
 
 	// This can be set to list of enrtree:// URLs which will be queried for
@@ -184,14 +174,7 @@ type Config struct {
 	DatabaseDiff       string
 	PersistDiff        bool
 	DiffBlock          uint64
-	// PruneAncientData is an optional config and disabled by default, and usually you do not need it.
-	// When this flag is enabled, only keep the latest 9w blocks' data, the older blocks' data will be
-	// pruned instead of being dumped to freezerdb, the pruned data includes CanonicalHash, Header, Block,
-	// Receipt and TotalDifficulty.
-	// Notice: the PruneAncientData once be turned on, the get/chaindata/ancient dir will be removed,
-	// if restart without the pruneancient flag, the ancient data will start with the previous point that
-	// the oldest unpruned block number.
-	PruneAncientData bool
+	PruneAncientData   bool
 
 	TrieCleanCache          int
 	TrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
@@ -245,35 +228,6 @@ type Config struct {
 
 	// OverrideTerminalTotalDifficulty (TODO: remove after the fork)
 	OverrideTerminalTotalDifficulty *big.Int `toml:",omitempty"`
-
-	// PERI_PEER_EVICTION_POLICY_CODE_PIECE
-	PeriActive               bool    // global switch of Peri peer eviction policy
-	PeriPeriod               uint64  // period of peer reselection in seconds
-	PeriReplaceRatio         float64 // 0~1, ratio of replaced peers in each epoch
-	PeriBlockNodeRatio       float64 // 0~1, ratio of reserve peers that approach to nodes who broadcast blocks
-	PeriTxNodeRatio          float64 // 0~1, ratio of reserve peers that approach to nodes who broadcast transactions
-	PeriMinInbound           int     //
-	PeriMaxDelayPenalty      uint64  // Maximum delay of a tx recorded at a neighbor in ms
-	PeriAnnouncePenalty      uint64  // The penalty for announce, to encourage receive block body, in ms
-	PeriMaxDeliveryTolerance int64
-	PeriObservedTxRatio      int      // (1 / sampling rate) of global latency; must be int
-	PeriTargeted             bool     // global latency if `false`, targeted latency if `true` (target accounts in `TargetAccountList`)
-	PeriShowTxDelivery       bool     // Controls whether the console prints all txs
-	PeriTargetAccountList    []string // list of target accounts
-	PeriNoPeerIPList         []string // node with IP addresses in this list are permanently blocked
-	PeriNoDropList           []string
-	PeriMaxTransactionAmount int      // max count of old transactions in old arrival record
-	PeriMaxBlockAmount       int      // max count of old blocks in old arrival record
-	PeriLogFilePath          string   // peri log file path
-	PeriDataDirectory        string   // database to store evicted peers
-	PeriBroadcast            bool     // Flag whether broadcast block to peri peers
-	PeriPeersIp              []string // Peri peers' ip list
-	PeriApproachMiners       bool     // indicate whether Peri approach miners, if true -> miners, if false -> victims
-
-	// Pioplat Disguise Mechanism
-	DisguiseServerUrl          string // tcp address of full node that instrumented to provider forkId or something else information
-	DisguiseServerX509CertFile string // tls cert .pem file
-	DisguiseServerX509KeyFile  string // tls key .pem file
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

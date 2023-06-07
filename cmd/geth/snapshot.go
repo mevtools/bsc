@@ -70,6 +70,10 @@ var (
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					utils.AncientFlag,
+					utils.RopstenFlag,
+					utils.SepoliaFlag,
+					utils.RinkebyFlag,
+					utils.GoerliFlag,
 					utils.CacheTrieJournalFlag,
 					utils.BloomFilterSizeFlag,
 					utils.TriesInMemoryFlag,
@@ -122,6 +126,10 @@ so it's very necessary to do block data prune, this feature will handle it.
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					utils.AncientFlag,
+					utils.RopstenFlag,
+					utils.SepoliaFlag,
+					utils.RinkebyFlag,
+					utils.GoerliFlag,
 				},
 				Description: `
 geth snapshot verify-state <state-root>
@@ -140,6 +148,9 @@ In other words, this command does the snapshot to trie conversion.
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					utils.AncientFlag,
+					utils.RopstenFlag,
+					utils.RinkebyFlag,
+					utils.GoerliFlag,
 				},
 				Description: `
 will prune all historical trie state data except genesis block.
@@ -162,6 +173,10 @@ the trie clean cache with default directory will be deleted.
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					utils.AncientFlag,
+					utils.RopstenFlag,
+					utils.SepoliaFlag,
+					utils.RinkebyFlag,
+					utils.GoerliFlag,
 				},
 				Description: `
 geth snapshot traverse-state <state-root>
@@ -181,6 +196,10 @@ It's also usable without snapshot enabled.
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					utils.AncientFlag,
+					utils.RopstenFlag,
+					utils.SepoliaFlag,
+					utils.RinkebyFlag,
+					utils.GoerliFlag,
 				},
 				Description: `
 geth snapshot traverse-rawstate <state-root>
@@ -201,6 +220,10 @@ It's also usable without snapshot enabled.
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					utils.AncientFlag,
+					utils.RopstenFlag,
+					utils.SepoliaFlag,
+					utils.RinkebyFlag,
+					utils.GoerliFlag,
 					utils.ExcludeCodeFlag,
 					utils.ExcludeStorageFlag,
 					utils.StartKeyFlag,
@@ -578,7 +601,8 @@ func traverseState(ctx *cli.Context) error {
 			}
 		}
 		if !bytes.Equal(acc.CodeHash, emptyCode) {
-			if !rawdb.HasCode(chaindb, common.BytesToHash(acc.CodeHash)) {
+			code := rawdb.ReadCode(chaindb, common.BytesToHash(acc.CodeHash))
+			if len(code) == 0 {
 				log.Error("Code is missing", "hash", common.BytesToHash(acc.CodeHash))
 				return errors.New("missing code")
 			}
@@ -649,10 +673,11 @@ func traverseRawState(ctx *cli.Context) error {
 		nodes += 1
 		node := accIter.Hash()
 
-		// Check the present for non-empty hash node(embedded node doesn't
-		// have their own hash).
 		if node != (common.Hash{}) {
-			if !rawdb.HasTrieNode(chaindb, node) {
+			// Check the present for non-empty hash node(embedded node doesn't
+			// have their own hash).
+			blob := rawdb.ReadTrieNode(chaindb, node)
+			if len(blob) == 0 {
 				log.Error("Missing trie node(account)", "hash", node)
 				return errors.New("missing account")
 			}
@@ -696,7 +721,8 @@ func traverseRawState(ctx *cli.Context) error {
 				}
 			}
 			if !bytes.Equal(acc.CodeHash, emptyCode) {
-				if !rawdb.HasCode(chaindb, common.BytesToHash(acc.CodeHash)) {
+				code := rawdb.ReadCode(chaindb, common.BytesToHash(acc.CodeHash))
+				if len(code) == 0 {
 					log.Error("Code is missing", "account", common.BytesToHash(accIter.LeafKey()))
 					return errors.New("missing code")
 				}

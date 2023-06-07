@@ -18,11 +18,15 @@ package snapshot
 
 import (
 	"bytes"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/ethdb/leveldb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -215,7 +219,7 @@ func TestDiskMerge(t *testing.T) {
 // and invalidates any previously written and cached values, discarding anything
 // after the in-progress generation marker.
 func TestDiskPartialMerge(t *testing.T) {
-	// Iterate the test a few times to ensure we pick various internal orderings
+	// Iterate the test a few times to ensure we pick various exinternal orderings
 	// for the data slots as well as the progress marker.
 	for i := 0; i < 1024; i++ {
 		// Create some accounts in the disk layer
@@ -514,7 +518,18 @@ func TestDiskMidAccountPartialMerge(t *testing.T) {
 // TestDiskSeek tests that seek-operations work on the disk layer
 func TestDiskSeek(t *testing.T) {
 	// Create some accounts in the disk layer
-	db := rawdb.NewMemoryDatabase()
+	var db ethdb.Database
+
+	if dir, err := ioutil.TempDir("", "disklayer-test"); err != nil {
+		t.Fatal(err)
+	} else {
+		defer os.RemoveAll(dir)
+		diskdb, err := leveldb.New(dir, 256, 0, "", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		db = rawdb.NewDatabase(diskdb)
+	}
 	// Fill even keys [0,2,4...]
 	for i := 0; i < 0xff; i += 2 {
 		acc := common.Hash{byte(i)}

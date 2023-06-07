@@ -32,7 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/signer/core"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -40,7 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/signer/storage"
 )
 
-// Used for testing
+//Used for testing
 type headlessUi struct {
 	approveCh chan string // to send approve/deny
 	inputCh   chan string // to send password
@@ -63,7 +63,7 @@ func (ui *headlessUi) ApproveTx(request *core.SignTxRequest) (core.SignTxRespons
 	case "M": // modify
 		// The headless UI always modifies the transaction
 		old := big.Int(request.Transaction.Value)
-		newVal := new(big.Int).Add(&old, big.NewInt(1))
+		newVal := big.NewInt(0).Add(&old, big.NewInt(1))
 		request.Transaction.Value = hexutil.Big(*newVal)
 		return core.SignTxResponse{request.Transaction, true}, nil
 	default:

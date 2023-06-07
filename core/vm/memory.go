@@ -17,6 +17,8 @@
 package vm
 
 import (
+	"fmt"
+
 	"github.com/holiman/uint256"
 )
 
@@ -66,7 +68,7 @@ func (m *Memory) Resize(size uint64) {
 	}
 }
 
-// GetCopy returns offset + size as a new slice
+// Get returns offset + size as a new slice
 func (m *Memory) GetCopy(offset, size int64) (cpy []byte) {
 	if size == 0 {
 		return nil
@@ -103,4 +105,19 @@ func (m *Memory) Len() int {
 // Data returns the backing slice
 func (m *Memory) Data() []byte {
 	return m.store
+}
+
+// Print dumps the content of the memory.
+func (m *Memory) Print() {
+	fmt.Printf("### mem %d bytes ###\n", len(m.store))
+	if len(m.store) > 0 {
+		addr := 0
+		for i := 0; i+32 <= len(m.store); i += 32 {
+			fmt.Printf("%03d: % x\n", addr, m.store[i:i+32])
+			addr++
+		}
+	} else {
+		fmt.Println("-- empty --")
+	}
+	fmt.Println("####################")
 }

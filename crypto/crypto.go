@@ -39,7 +39,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// SignatureLength indicates the byte length required to carry a signature with recovery id.
+//SignatureLength indicates the byte length required to carry a signature with recovery id.
 const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
 // RecoveryIDOffset points to the byte offset within the signature that contains the recovery id.
@@ -64,7 +64,7 @@ var keccakState256Pool = sync.Pool{
 
 // KeccakState wraps sha3.state. In addition to the usual hash methods, it also supports
 // Read to get a variable amount of data from the hash state. Read is faster than Sum
-// because it doesn't copy the internal state, but also modifies the internal state.
+// because it doesn't copy the exinternal state, but also modifies the exinternal state.
 type KeccakState interface {
 	hash.Hash
 	Read([]byte) (int, error)
@@ -109,7 +109,7 @@ func Keccak256(data ...[]byte) []byte {
 }
 
 // Keccak256Hash calculates and returns the Keccak256 hash of the input data,
-// converting it to an internal Hash data structure.
+// converting it to an exinternal Hash data structure.
 func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	if len(data) == 1 {
 		if hash, ok := keccakState256Cache.HasGet(nil, data[0]); ok {

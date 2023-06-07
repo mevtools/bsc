@@ -99,10 +99,6 @@ type handlerConfig struct {
 	DirectBroadcast        bool
 	DisablePeerTxBroadcast bool
 	PeerSet                *peerSet
-
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	PeriBroadcast bool
-	PeriPeersIp   map[string]interface{}
 }
 
 type handler struct {
@@ -114,10 +110,6 @@ type handler struct {
 	acceptTxs       uint32 // Flag whether we're considered synchronised (enables transaction processing)
 	directBroadcast bool
 	diffSync        bool // Flag whether diff sync should operate on top of the diff protocol
-
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	periBroadcast bool                   // Flag whether broadcast block to peri peer
-	periPeersIp   map[string]interface{} // A map recording all ip of peri peers
 
 	checkpointNumber uint64      // Block number for the sync progress validator to cross reference
 	checkpointHash   common.Hash // Block hash for the sync progress validator to cross reference
@@ -171,12 +163,9 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		merger:                 config.Merger,
 		whitelist:              config.Whitelist,
 		directBroadcast:        config.DirectBroadcast,
-		periBroadcast:          config.PeriBroadcast,
-		periPeersIp:            config.PeriPeersIp,
 		diffSync:               config.DiffSync,
 		quitSync:               make(chan struct{}),
 	}
-
 	if config.Sync == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the snap
 		// block is ahead, so snap sync was enabled for this node at a certain point.
@@ -273,7 +262,6 @@ func newHandler(config *handlerConfig) (*handler, error) {
 			log.Warn("Fast syncing, discarded propagated block", "number", blocks[0].Number(), "hash", blocks[0].Hash())
 			return 0, nil
 		}
-
 		if h.merger.TDDReached() {
 			// The blocks from the p2p network is regarded as untrusted
 			// after the transition. In theory block gossip should be disabled
@@ -357,14 +345,6 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		peer.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
 	}
-
-	//PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	peerEnode := peer.Node().URLv4()
-	if peri != nil && peri.isBlocked(peerEnode) {
-		log.Debug("rejected node in the blacklist", "peer", peerEnode[enodeSplitIndex:])
-		return p2p.DiscInPeriBlocklist
-	}
-
 	reject := false // reserved peer slots
 	if atomic.LoadUint32(&h.snapSync) == 1 {
 		if snap == nil {
@@ -420,16 +400,11 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	if h.checkpointHash != (common.Hash{}) {
 		// Request the peer's checkpoint header for chain height/weight validation
 		resCh := make(chan *eth.Response)
-
-		req, err := peer.RequestHeadersByNumber(h.checkpointNumber, 1, 0, false, resCh)
-		if err != nil {
+		if _, err := peer.RequestHeadersByNumber(h.checkpointNumber, 1, 0, false, resCh); err != nil {
 			return err
 		}
 		// Start a timer to disconnect if the peer doesn't reply in time
 		go func() {
-			// Ensure the request gets cancelled in case of error/drop
-			defer req.Close()
-
 			timeout := time.NewTimer(syncChallengeTimeout)
 			defer timeout.Stop()
 
@@ -471,15 +446,10 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	// If we have any explicit whitelist block hashes, request them
 	for number, hash := range h.whitelist {
 		resCh := make(chan *eth.Response)
-
-		req, err := peer.RequestHeadersByNumber(number, 1, 0, false, resCh)
-		if err != nil {
+		if _, err := peer.RequestHeadersByNumber(number, 1, 0, false, resCh); err != nil {
 			return err
 		}
-		go func(number uint64, hash common.Hash, req *eth.Request) {
-			// Ensure the request gets cancelled in case of error/drop
-			defer req.Close()
-
+		go func(number uint64, hash common.Hash) {
 			timeout := time.NewTimer(syncChallengeTimeout)
 			defer timeout.Stop()
 
@@ -508,7 +478,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 				peer.Log().Warn("Whitelist challenge timed out, dropping", "addr", peer.RemoteAddr(), "type", peer.Name())
 				h.removePeer(peer.ID())
 			}
-		}(number, hash, req)
+		}(number, hash)
 	}
 	// Handle incoming messages until the connection is torn down
 	return handler(peer)
@@ -523,7 +493,7 @@ func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error 
 	defer h.peerWG.Done()
 
 	if err := h.peers.registerSnapExtension(peer); err != nil {
-		peer.Log().Warn("Snapshot extension registration failed", "err", err)
+		peer.Log().Error("Snapshot extension registration failed", "err", err)
 		return err
 	}
 	return handler(peer)
@@ -571,7 +541,7 @@ func (h *handler) removePeer(id string) {
 
 // unregisterPeer removes a peer from the downloader, fetchers and main peer set.
 func (h *handler) unregisterPeer(id string) {
-	// Create a custom fileLogger to avoid printing the entire id
+	// Create a custom logger to avoid printing the entire id
 	var logger log.Logger
 	if len(id) < 16 {
 		// Tests use short IDs, don't choke on them
@@ -685,22 +655,18 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 				// difflayer should send before block
 				peer.diffExt.SendDiffLayers([]rlp.RawValue{diff})
 			}
-			// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-			// todo: disable block body broadcast
-			//peer.AsyncSendNewBlock(block, td)
+			peer.AsyncSendNewBlock(block, td)
 		}
 
-		log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "td", td, "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
+		log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 		return
 	}
 	// Otherwise if the block is indeed in out own chain, announce it
 	if h.chain.HasBlock(hash, block.NumberU64()) {
-		// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-		// todo: disable block hash broadcast
-		//for _, peer := range peers {
-		//	peer.AsyncSendNewBlockHash(block)
-		//}
-		//log.Trace("Announced block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
+		for _, peer := range peers {
+			peer.AsyncSendNewBlockHash(block)
+		}
+		log.Trace("Announced block", "hash", hash, "recipients", len(peers), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 	}
 }
 
@@ -732,18 +698,16 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 			annos[peer] = append(annos[peer], tx.Hash())
 		}
 	}
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	// todo: disable transaction broadcast
-	//for peer, hashes := range txset {
-	//	directPeers++
-	//	directCount += len(hashes)
-	//	peer.AsyncSendTransactions(hashes)
-	//}
-	//for peer, hashes := range annos {
-	//	annoPeers++
-	//	annoCount += len(hashes)
-	//	peer.AsyncSendPooledTransactionHashes(hashes)
-	//}
+	for peer, hashes := range txset {
+		directPeers++
+		directCount += len(hashes)
+		peer.AsyncSendTransactions(hashes)
+	}
+	for peer, hashes := range annos {
+		annoPeers++
+		annoCount += len(hashes)
+		peer.AsyncSendPooledTransactionHashes(hashes)
+	}
 	log.Debug("Transaction broadcast", "txs", len(txs),
 		"announce packs", annoPeers, "announced hashes", annoCount,
 		"tx packs", directPeers, "broadcast txs", directCount)

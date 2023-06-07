@@ -163,7 +163,7 @@ type Backend interface {
 	// means that no base seeds are decrypted, and for hardware wallets that no actual
 	// connection is established.
 	//
-	// The resulting wallet list will be sorted alphabetically based on its internal
+	// The resulting wallet list will be sorted alphabetically based on its exinternal
 	// URL assigned by the backend. Since wallets (especially hardware) may come and
 	// go, the same wallet might appear at a different positions in the list during
 	// subsequent retrievals.
@@ -178,8 +178,7 @@ type Backend interface {
 // safely used to calculate a signature from.
 //
 // The hash is calculated as
-//
-//	keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
+//   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
 func TextHash(data []byte) []byte {
@@ -191,8 +190,7 @@ func TextHash(data []byte) []byte {
 // safely used to calculate a signature from.
 //
 // The hash is calculated as
-//
-//	keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
+//   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
 func TextAndHash(data []byte) ([]byte, string) {

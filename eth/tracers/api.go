@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -41,7 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -170,26 +169,19 @@ func (api *API) blockByNumberAndHash(ctx context.Context, number rpc.BlockNumber
 // TraceConfig holds extra parameters to trace functions.
 type TraceConfig struct {
 	*logger.Config
-	// Config specific to given tracer. Note struct logger
-	// config are historically embedded in main object.
-	TracerConfig      json.RawMessage
-	Tracer            *string
-	Timeout           *string
-	Reexec            *uint64
-	NestedTraceOutput bool // Returns the trace output JSON nested under the trace name key. This allows full Parity compatibility to be achieved.
+	Tracer  *string
+	Timeout *string
+	Reexec  *uint64
 }
 
 // TraceCallConfig is the config for traceCall API. It holds one more
 // field to override the state for tracing.
 type TraceCallConfig struct {
-	NestedTraceOutput bool // Returns the trace output JSON nested under the trace name key. This allows full Parity compatibility to be achieved.
-	TraceConfig
 	*logger.Config
 	Tracer         *string
 	Timeout        *string
 	Reexec         *uint64
 	StateOverrides *ethapi.StateOverride
-	BlockOverrides *ethapi.BlockOverrides
 }
 
 // StdTraceConfig holds extra parameters to standard-json trace functions.
@@ -227,20 +219,6 @@ type blockTraceResult struct {
 type txTraceTask struct {
 	statedb *state.StateDB // Intermediate state prepped for tracing
 	index   int            // Transaction offset in the block
-}
-
-func getTraceConfigFromTraceCallConfig(config *TraceCallConfig) *TraceConfig {
-	var traceConfig *TraceConfig
-	if config != nil {
-		traceConfig = &TraceConfig{
-			Config:            config.Config,
-			Tracer:            config.Tracer,
-			Timeout:           config.Timeout,
-			Reexec:            config.Reexec,
-			NestedTraceOutput: config.NestedTraceOutput,
-		}
-	}
-	return traceConfig
 }
 
 // TraceChain returns the structured logs created during the execution of EVM
@@ -476,7 +454,7 @@ func (api *API) TraceBlockByHash(ctx context.Context, hash common.Hash, config *
 
 // TraceBlock returns the structured logs created during the execution of EVM
 // and returns them as a JSON object.
-func (api *API) TraceBlock(ctx context.Context, blob hexutil.Bytes, config *TraceConfig) ([]*txTraceResult, error) {
+func (api *API) TraceBlock(ctx context.Context, blob []byte, config *TraceConfig) ([]*txTraceResult, error) {
 	block := new(types.Block)
 	if err := rlp.Decode(bytes.NewReader(blob), block); err != nil {
 		return nil, fmt.Errorf("could not decode block: %v", err)
@@ -889,126 +867,67 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 		return nil, err
 	}
 	// Apply the customized state rules if required.
-	vmctx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 	if config != nil {
 		if err := config.StateOverrides.Apply(statedb); err != nil {
 			return nil, err
 		}
-		config.BlockOverrides.Apply(&vmctx)
 	}
 	// Execute the trace
 	msg, err := args.ToMessage(api.backend.RPCGasCap(), block.BaseFee())
 	if err != nil {
 		return nil, err
 	}
+	vmctx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 
 	var traceConfig *TraceConfig
 	if config != nil {
-		traceConfig = &config.TraceConfig
+		traceConfig = &TraceConfig{
+			Config:  config.Config,
+			Tracer:  config.Tracer,
+			Timeout: config.Timeout,
+			Reexec:  config.Reexec,
+		}
 	}
 	return api.traceTx(ctx, msg, new(Context), vmctx, statedb, traceConfig)
-}
-
-// TraceCallMany lets you trace a given eth_call. It collects the structured logs created during the execution of EVM
-// if the given transaction was added on top of the provided block and returns them as a JSON object.
-// You can provide -2 as a block number to trace on top of the pending block.
-func (api *API) TraceCallMany(ctx context.Context, txs []ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
-	// Try to retrieve the specified block
-	var (
-		err   error
-		block *types.Block
-	)
-	if hash, ok := blockNrOrHash.Hash(); ok {
-		block, err = api.blockByHash(ctx, hash)
-	} else if number, ok := blockNrOrHash.Number(); ok {
-		block, err = api.blockByNumber(ctx, number)
-	} else {
-		return nil, errors.New("invalid arguments; neither block nor hash specified")
-	}
-	if err != nil {
-		return nil, err
-	}
-	// try to recompute the state
-	reexec := defaultTraceReexec
-	if config != nil && config.Reexec != nil {
-		reexec = *config.Reexec
-	}
-	statedb, err := api.backend.StateAtBlock(ctx, block, reexec, nil, true, false)
-	if err != nil {
-		return nil, err
-	}
-	// Apply the customized state rules if required.
-	if config != nil {
-		if err := config.StateOverrides.Apply(statedb); err != nil {
-			return nil, err
-		}
-	}
-
-	traceConfig := getTraceConfigFromTraceCallConfig(config)
-
-	var results = make([]interface{}, len(txs))
-	for idx, args := range txs {
-		// Execute the trace
-		msg, err := args.ToMessage(api.backend.RPCGasCap(), block.BaseFee())
-		if err != nil {
-			results[idx] = &txTraceResult{Error: err.Error()}
-			continue
-		}
-		vmctx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
-		config.BlockOverrides.Apply(&vmctx)
-
-		res, err := api.traceTx(ctx, msg, new(Context), vmctx, statedb, traceConfig)
-		if err != nil {
-			results[idx] = &txTraceResult{Error: err.Error()}
-			continue
-		}
-
-		res, err = decorateResponse(res, traceConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decorate response for transaction at index %d with error %v", idx, err)
-		}
-		results[idx] = res
-	}
-
-	return results, nil
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
 func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Context, vmctx vm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+	// Assemble the structured logger or the JavaScript tracer
 	var (
-		tracer    Tracer
+		tracer    vm.EVMLogger
 		err       error
-		timeout   = defaultTraceTimeout
 		txContext = core.NewEVMTxContext(message)
 	)
-	if config == nil {
-		config = &TraceConfig{}
-	}
-	// Default tracer is the struct logger
-	tracer = logger.NewStructLogger(config.Config)
-	if config.Tracer != nil {
-		tracer, err = New(*config.Tracer, txctx, config.TracerConfig)
-		if err != nil {
+	switch {
+	case config == nil:
+		tracer = logger.NewStructLogger(nil)
+	case config.Tracer != nil:
+		// Define a meaningful timeout of a single transaction trace
+		timeout := defaultTraceTimeout
+		if config.Timeout != nil {
+			if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
+				return nil, err
+			}
+		}
+		if t, err := New(*config.Tracer, txctx); err != nil {
 			return nil, err
+		} else {
+			deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+			gopool.Submit(func() {
+				<-deadlineCtx.Done()
+				if errors.Is(deadlineCtx.Err(), context.DeadlineExceeded) {
+					t.Stop(errors.New("execution timeout"))
+				}
+			})
+			defer cancel()
+			tracer = t
 		}
+	default:
+		tracer = logger.NewStructLogger(config.Config)
 	}
-	// Define a meaningful timeout of a single transaction trace
-	if config.Timeout != nil {
-		if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
-			return nil, err
-		}
-	}
-	deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
-	go func() {
-		<-deadlineCtx.Done()
-		if errors.Is(deadlineCtx.Err(), context.DeadlineExceeded) {
-			tracer.Stop(errors.New("execution timeout"))
-		}
-	}()
-	defer cancel()
-
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), vm.Config{Debug: true, Tracer: tracer, NoBaseFee: true})
 
@@ -1024,14 +943,32 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Contex
 	// Call Prepare to clear out the statedb access list
 	statedb.Prepare(txctx.TxHash, txctx.TxIndex)
 
-	// CaptrurePreEVM is being used from state_diff tracer to read balance/nonce/code of accounts before TX execution
-	if traceStateCapturer, ok := tracer.(vm.EVMLogger_StateCapturer); ok {
-		traceStateCapturer.CapturePreEVM(vmenv)
-	}
-	if _, err = core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas())); err != nil {
+	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
+	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
-	return tracer.GetResult()
+
+	// Depending on the tracer type, format and return the output.
+	switch tracer := tracer.(type) {
+	case *logger.StructLogger:
+		// If the result contains a revert reason, return it.
+		returnVal := fmt.Sprintf("%x", result.Return())
+		if len(result.Revert()) > 0 {
+			returnVal = fmt.Sprintf("%x", result.Revert())
+		}
+		return &ethapi.ExecutionResult{
+			Gas:         result.UsedGas,
+			Failed:      result.Failed(),
+			ReturnValue: returnVal,
+			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
+		}, nil
+
+	case Tracer:
+		return tracer.GetResult()
+
+	default:
+		panic(fmt.Sprintf("bad tracer type %T", tracer))
+	}
 }
 
 // APIs return the collection of RPC services the tracer package offers.

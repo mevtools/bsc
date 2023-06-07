@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -77,7 +78,7 @@ type NodeIterator interface {
 	Hash() common.Hash
 
 	// Parent returns the hash of the parent of the current node. The hash may be the one
-	// grandparent if the immediate parent is an internal node with no hash.
+	// grandparent if the immediate parent is an exinternal node with no hash.
 	Parent() common.Hash
 
 	// Path returns the hex-encoded path to the current node.
@@ -131,7 +132,7 @@ type nodeIterator struct {
 	trie  *Trie                // Trie being iterated
 	stack []*nodeIteratorState // Hierarchy of trie nodes persisting the iteration state
 	path  []byte               // Path to the current node
-	err   error                // Failure set in case of an internal error in the iterator
+	err   error                // Failure set in case of an exinternal error in the iterator
 
 	resolver ethdb.KeyValueReader // Optional intermediate resolver above the disk layer
 }
@@ -150,11 +151,8 @@ func (e seekError) Error() string {
 }
 
 func newNodeIterator(trie *Trie, start []byte) NodeIterator {
-	if trie.Hash() == emptyRoot {
-		return &nodeIterator{
-			trie: trie,
-			err:  errIteratorEnd,
-		}
+	if trie.Hash() == emptyState {
+		return new(nodeIterator)
 	}
 	it := &nodeIterator{trie: trie}
 	it.err = it.seek(start)
@@ -212,7 +210,8 @@ func (it *nodeIterator) LeafProof() [][]byte {
 				// Gather nodes that end up as hash nodes (or the root)
 				node, hashed := hasher.proofHash(item.node)
 				if _, ok := hashed.(hashNode); ok || i == 0 {
-					proofs = append(proofs, nodeToBytes(node))
+					enc, _ := rlp.EncodeToBytes(node)
+					proofs = append(proofs, enc)
 				}
 			}
 			return proofs
@@ -236,7 +235,7 @@ func (it *nodeIterator) Error() error {
 }
 
 // Next moves the iterator to the next node, returning whether there are any
-// further nodes. In case of an internal error this method returns false and
+// further nodes. In case of an exinternal error this method returns false and
 // sets the Error field to the encountered failure. If `descend` is false,
 // skips iterating over any subnodes of the current node.
 func (it *nodeIterator) Next(descend bool) bool {
@@ -403,7 +402,7 @@ func findChild(n *fullNode, index int, path []byte, ancestor common.Hash) (node,
 func (it *nodeIterator) nextChild(parent *nodeIteratorState, ancestor common.Hash) (*nodeIteratorState, []byte, bool) {
 	switch node := parent.node.(type) {
 	case *fullNode:
-		// Full node, move to the first non-nil child.
+		//Full node, move to the first non-nil child.
 		if child, state, path, index := findChild(node, parent.index+1, it.path, ancestor); child != nil {
 			parent.index = index - 1
 			return state, path, true
@@ -481,9 +480,8 @@ func (it *nodeIterator) push(state *nodeIteratorState, parentIndex *int, path []
 }
 
 func (it *nodeIterator) pop() {
-	last := it.stack[len(it.stack)-1]
-	it.path = it.path[:last.pathlen]
-	it.stack[len(it.stack)-1] = nil
+	parent := it.stack[len(it.stack)-1]
+	it.path = it.path[:parent.pathlen]
 	it.stack = it.stack[:len(it.stack)-1]
 }
 

@@ -50,7 +50,7 @@ const (
 // be flagged `false`.
 // Input specifies the required input parameters for this gives method.
 type Method struct {
-	// Name is the method name used for internal representation. It's derived from
+	// Name is the method name used for exinternal representation. It's derived from
 	// the raw name and a suffix will be added in the case of a function overload.
 	//
 	// e.g.

@@ -33,15 +33,9 @@ import (
 )
 
 const (
-	lightTimeout = time.Millisecond // Time allowance before an announced header is explicitly requested
-
-	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
-	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
-
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	// arriveTimeout = 2 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
-	// gatherSlack   = 1 * time.Millisecond // Interval used to collate almost-expired announces with fetches
-
+	lightTimeout        = time.Millisecond       // Time allowance before an announced header is explicitly requested
+	arriveTimeout       = 500 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
+	gatherSlack         = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
 	fetchTimeout        = 5 * time.Second        // Maximum allotted time to return an explicitly requested block/transaction
 	reQueueBlockTimeout = 500 * time.Millisecond // Time allowance before blocks are requeued for import
 
@@ -476,11 +470,6 @@ func (f *BlockFetcher) loop() {
 				if f.light {
 					timeout = 0
 				}
-
-				// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-				// turn off "only request if not received block after arrive Timeout-gather Slack"
-				timeout = 0
-
 				if time.Since(announces[0].time) > timeout {
 					// Pick a random peer to retrieve from, reset all others
 					announce := announces[rand.Intn(len(announces))]
@@ -519,21 +508,10 @@ func (f *BlockFetcher) loop() {
 							}
 							defer req.Close()
 
-							timeout := time.NewTimer(2 * fetchTimeout) // 2x leeway before dropping the peer
-							defer timeout.Stop()
+							res := <-resCh
+							res.Done <- nil
 
-							select {
-							case res := <-resCh:
-								res.Done <- nil
-								f.FilterHeaders(peer, *res.Res.(*eth.BlockHeadersPacket), time.Now().Add(res.Time))
-
-							case <-timeout.C:
-								// The peer didn't respond in time. The request
-								// was already rescheduled at this point, we were
-								// waiting for a catchup. With an unresponsive
-								// peer however, it's a protocol violation.
-								f.dropPeer(peer)
-							}
+							f.FilterHeaders(peer, *res.Res.(*eth.BlockHeadersPacket), time.Now().Add(res.Time))
 						}(hash)
 					}
 				}(peer)
@@ -576,23 +554,11 @@ func (f *BlockFetcher) loop() {
 					}
 					defer req.Close()
 
-					timeout := time.NewTimer(2 * fetchTimeout) // 2x leeway before dropping the peer
-					defer timeout.Stop()
+					res := <-resCh
+					res.Done <- nil
 
-					select {
-					case res := <-resCh:
-						res.Done <- nil
-
-						txs, uncles := res.Res.(*eth.BlockBodiesPacket).Unpack()
-						f.FilterBodies(peer, txs, uncles, time.Now())
-
-					case <-timeout.C:
-						// The peer didn't respond in time. The request
-						// was already rescheduled at this point, we were
-						// waiting for a catchup. With an unresponsive
-						// peer however, it's a protocol violation.
-						f.dropPeer(peer)
-					}
+					txs, uncles := res.Res.(*eth.BlockBodiesPacket).Unpack()
+					f.FilterBodies(peer, txs, uncles, time.Now())
 				}(peer, hashes)
 			}
 			// Schedule the next fetch if blocks are still pending
@@ -853,18 +819,15 @@ func (f *BlockFetcher) importHeaders(op *blockOrHeaderInject) {
 	log.Debug("Importing propagated header", "peer", peer, "number", header.Number, "hash", hash)
 
 	go func() {
+		defer func() { f.done <- hash }()
 		// If the parent's unknown, abort insertion
 		parent := f.getHeader(header.ParentHash)
 		if parent == nil {
 			log.Debug("Unknown parent of propagated header", "peer", peer, "number", header.Number, "hash", hash, "parent", header.ParentHash)
 			time.Sleep(reQueueBlockTimeout)
-			// forget block first, then re-queue
-			f.done <- hash
 			f.requeue <- op
 			return
 		}
-
-		defer func() { f.done <- hash }()
 		// Validate the header and if something went wrong, drop the peer
 		if err := f.verifyHeader(header); err != nil && err != consensus.ErrFutureBlock {
 			log.Debug("Propagated header verification failed", "peer", peer, "number", header.Number, "hash", hash, "err", err)
@@ -894,18 +857,16 @@ func (f *BlockFetcher) importBlocks(op *blockOrHeaderInject) {
 	// Run the import on a new thread
 	log.Debug("Importing propagated block", "peer", peer, "number", block.Number(), "hash", hash)
 	go func() {
+		defer func() { f.done <- hash }()
+
 		// If the parent's unknown, abort insertion
 		parent := f.getBlock(block.ParentHash())
 		if parent == nil {
 			log.Debug("Unknown parent of propagated block", "peer", peer, "number", block.Number(), "hash", hash, "parent", block.ParentHash())
 			time.Sleep(reQueueBlockTimeout)
-			// forget block first, then re-queue
-			f.done <- hash
 			f.requeue <- op
 			return
 		}
-
-		defer func() { f.done <- hash }()
 		// Quickly validate the header and propagate the block if it passes
 		switch err := f.verifyHeader(block.Header()); err {
 		case nil:
@@ -940,7 +901,7 @@ func (f *BlockFetcher) importBlocks(op *blockOrHeaderInject) {
 }
 
 // forgetHash removes all traces of a block announcement from the fetcher's
-// internal state.
+// exinternal state.
 func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	// Remove all pending announces and decrement DOS counters
 	if announceMap, ok := f.announced[hash]; ok {
@@ -983,7 +944,7 @@ func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	}
 }
 
-// forgetBlock removes all traces of a queued block from the fetcher's internal
+// forgetBlock removes all traces of a queued block from the fetcher's exinternal
 // state.
 func (f *BlockFetcher) forgetBlock(hash common.Hash) {
 	if insert := f.queued[hash]; insert != nil {

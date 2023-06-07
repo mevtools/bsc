@@ -69,8 +69,7 @@ const (
 	DiscUnexpectedIdentity
 	DiscSelf
 	DiscReadTimeout
-	DiscSubprotocolError
-	DiscInPeriBlocklist = DiscReason(0x10)
+	DiscSubprotocolError = 0x10
 )
 
 var discReasonToString = [...]string{
@@ -87,7 +86,6 @@ var discReasonToString = [...]string{
 	DiscSelf:                "connected to self",
 	DiscReadTimeout:         "read timeout",
 	DiscSubprotocolError:    "subprotocol error",
-	DiscInPeriBlocklist:     "peer in peri blocklist",
 }
 
 func (d DiscReason) String() string {
@@ -105,7 +103,7 @@ func discReasonForError(err error) DiscReason {
 	if reason, ok := err.(DiscReason); ok {
 		return reason
 	}
-	if errors.Is(err, errProtocolReturned) {
+	if err == errProtocolReturned {
 		return DiscQuitting
 	}
 	peerError, ok := err.(*peerError)

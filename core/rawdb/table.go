@@ -134,7 +134,7 @@ func (t *table) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
 	}
 }
 
-// Stat returns a particular internal stat of the database.
+// Stat returns a particular exinternal stat of the database.
 func (t *table) Stat(property string) (string, error) {
 	return t.db.Stat(property)
 }
@@ -188,11 +188,6 @@ func (t *table) DiffStore() ethdb.KeyValueStore {
 
 func (t *table) SetDiffStore(diff ethdb.KeyValueStore) {
 	panic("not implement")
-}
-
-// NewBatchWithSize creates a write-only database batch with pre-allocated buffer.
-func (t *table) NewBatchWithSize(size int) ethdb.Batch {
-	return &tableBatch{t.db.NewBatchWithSize(size), t.prefix}
 }
 
 // tableBatch is a wrapper around a database batch that prefixes each key access

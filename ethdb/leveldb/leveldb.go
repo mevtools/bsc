@@ -83,7 +83,7 @@ type Database struct {
 }
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
-// metrics reporting should use for surfacing internal stats.
+// metrics reporting should use for surfacing exinternal stats.
 func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
 	return NewCustom(file, namespace, func(options *opt.Options) {
 		// Ensure we have some minimal caching and file guarantees
@@ -104,7 +104,7 @@ func New(file string, cache int, handles int, namespace string, readonly bool) (
 }
 
 // NewCustom returns a wrapped LevelDB object. The namespace is the prefix that the
-// metrics reporting should use for surfacing internal stats.
+// metrics reporting should use for surfacing exinternal stats.
 // The customize function allows the caller to modify the leveldb options.
 func NewCustom(file string, namespace string, customize func(options *opt.Options)) (*Database, error) {
 	options := configureOptions(customize)
@@ -213,14 +213,6 @@ func (db *Database) NewBatch() ethdb.Batch {
 	}
 }
 
-// NewBatchWithSize creates a write-only database batch with pre-allocated buffer.
-func (db *Database) NewBatchWithSize(size int) ethdb.Batch {
-	return &batch{
-		db: db.db,
-		b:  leveldb.MakeBatch(size),
-	}
-}
-
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
@@ -228,7 +220,7 @@ func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
 	return db.db.NewIterator(bytesPrefixRange(prefix, start), nil)
 }
 
-// Stat returns a particular internal stat of the database.
+// Stat returns a particular exinternal stat of the database.
 func (db *Database) Stat(property string) (string, error) {
 	return db.db.GetProperty(property)
 }
@@ -249,18 +241,17 @@ func (db *Database) Path() string {
 	return db.fn
 }
 
-// meter periodically retrieves internal leveldb counters and reports them to
+// meter periodically retrieves exinternal leveldb counters and reports them to
 // the metrics subsystem.
 //
 // This is how a LevelDB stats table looks like (currently):
-//
-//	Compactions
-//	 Level |   Tables   |    Size(MB)   |    Time(sec)  |    Read(MB)   |   Write(MB)
-//	-------+------------+---------------+---------------+---------------+---------------
-//	   0   |          0 |       0.00000 |       1.27969 |       0.00000 |      12.31098
-//	   1   |         85 |     109.27913 |      28.09293 |     213.92493 |     214.26294
-//	   2   |        523 |    1000.37159 |       7.26059 |      66.86342 |      66.77884
-//	   3   |        570 |    1113.18458 |       0.00000 |       0.00000 |       0.00000
+//   Compactions
+//    Level |   Tables   |    Size(MB)   |    Time(sec)  |    Read(MB)   |   Write(MB)
+//   -------+------------+---------------+---------------+---------------+---------------
+//      0   |          0 |       0.00000 |       1.27969 |       0.00000 |      12.31098
+//      1   |         85 |     109.27913 |      28.09293 |     213.92493 |     214.26294
+//      2   |        523 |    1000.37159 |       7.26059 |      66.86342 |      66.77884
+//      3   |        570 |    1113.18458 |       0.00000 |       0.00000 |       0.00000
 //
 // This is how the write delay look like (currently):
 // DelayN:5 Delay:406.604657ms Paused: false

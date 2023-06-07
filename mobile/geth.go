@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethstats"
-	"github.com/ethereum/go-ethereum/internal/debug"
+	"github.com/ethereum/go-ethereum/exinternal/debug"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -133,7 +133,7 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 		Name:        clientIdentifier,
 		Version:     params.VersionWithMeta,
 		DataDir:     datadir,
-		KeyStoreDir: filepath.Join(datadir, "keystore"), // Mobile should never use internal keystores!
+		KeyStoreDir: filepath.Join(datadir, "keystore"), // Mobile should never use exinternal keystores!
 		P2P: p2p.Config{
 			NoDiscovery:      true,
 			DiscoveryV5:      true,
@@ -158,6 +158,34 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 		if err := json.Unmarshal([]byte(config.EthereumGenesis), genesis); err != nil {
 			return nil, fmt.Errorf("invalid genesis spec: %v", err)
 		}
+		// If we have the Ropsten testnet, hard code the chain configs too
+		if config.EthereumGenesis == RopstenGenesis() {
+			genesis.Config = params.RopstenChainConfig
+			if config.EthereumNetworkID == 1 {
+				config.EthereumNetworkID = 3
+			}
+		}
+		// If we have the Sepolia testnet, hard code the chain configs too
+		if config.EthereumGenesis == SepoliaGenesis() {
+			genesis.Config = params.SepoliaChainConfig
+			if config.EthereumNetworkID == 1 {
+				config.EthereumNetworkID = 11155111
+			}
+		}
+		// If we have the Rinkeby testnet, hard code the chain configs too
+		if config.EthereumGenesis == RinkebyGenesis() {
+			genesis.Config = params.RinkebyChainConfig
+			if config.EthereumNetworkID == 1 {
+				config.EthereumNetworkID = 4
+			}
+		}
+		// If we have the Goerli testnet, hard code the chain configs too
+		if config.EthereumGenesis == GoerliGenesis() {
+			genesis.Config = params.GoerliChainConfig
+			if config.EthereumNetworkID == 1 {
+				config.EthereumNetworkID = 5
+			}
+		}
 	}
 	// Register the Ethereum protocol if requested
 	if config.EthereumEnabled {
@@ -180,7 +208,7 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 	return &Node{rawStack}, nil
 }
 
-// Close terminates a running node along with all it's services, tearing internal state
+// Close terminates a running node along with all it's services, tearing exinternal state
 // down. It is not possible to restart a closed node.
 func (n *Node) Close() error {
 	return n.node.Close()
@@ -190,6 +218,14 @@ func (n *Node) Close() error {
 func (n *Node) Start() error {
 	// TODO: recreate the node so it can be started multiple times
 	return n.node.Start()
+}
+
+// Stop terminates a running node along with all its services. If the node was not started,
+// an error is returned. It is not possible to restart a stopped node.
+//
+// Deprecated: use Close()
+func (n *Node) Stop() error {
+	return n.node.Close()
 }
 
 // GetEthereumClient retrieves a client to access the Ethereum subsystem.

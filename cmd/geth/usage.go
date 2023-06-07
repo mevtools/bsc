@@ -23,8 +23,8 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/internal/debug"
-	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/exinternal/debug"
+	"github.com/ethereum/go-ethereum/exinternal/flags"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -47,6 +47,10 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.SmartCardDaemonPathFlag,
 			utils.NetworkIdFlag,
 			utils.MainnetFlag,
+			utils.GoerliFlag,
+			utils.RinkebyFlag,
+			utils.RopstenFlag,
+			utils.SepoliaFlag,
 			utils.SyncModeFlag,
 			utils.TriesVerifyModeFlag,
 			utils.ExitWhenSyncedFlag,

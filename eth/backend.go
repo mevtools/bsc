@@ -49,8 +49,8 @@ import (
 	"github.com/ethereum/go-ethereum/eth/protocols/trust"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/internal/shutdowncheck"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/shutdowncheck"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
@@ -221,9 +221,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.PersistDiff {
 		bcOps = append(bcOps, core.EnablePersistDiff(config.DiffBlock))
 	}
-	if stack.Config().EnableDoubleSignMonitor {
-		bcOps = append(bcOps, core.EnableDoubleSignChecker)
-	}
 
 	peers := newPeerSet()
 	bcOps = append(bcOps, core.EnableBlockValidator(chainConfig, eth.engine, config.TriesVerifyMode, peers))
@@ -251,7 +248,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
 
-	ethHandlerConfig := &handlerConfig{
+	if eth.handler, err = newHandler(&handlerConfig{
 		Database:               chainDb,
 		Chain:                  eth.blockchain,
 		TxPool:                 eth.txPool,
@@ -266,17 +263,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		DiffSync:               config.DiffSync,
 		DisablePeerTxBroadcast: config.DisablePeerTxBroadcast,
 		PeerSet:                peers,
-
-		// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-		PeriBroadcast: config.PeriBroadcast,
-		PeriPeersIp:   make(map[string]interface{}),
-	}
-
-	for _, ip := range config.PeriPeersIp {
-		ethHandlerConfig.PeriPeersIp[ip] = nil
-	}
-
-	if eth.handler, err = newHandler(ethHandlerConfig); err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
@@ -314,9 +301,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	// Successful startup; push a marker and check previous unclean shutdowns.
 	eth.shutdownTracker.MarkStartup()
-
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	eth.config.PeriDataDirectory = stack.ResolvePath("")
 
 	return eth, nil
 }
@@ -603,7 +587,7 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	return protos
 }
 
-// Start implements node.Lifecycle, starting all internal goroutines needed by the
+// Start implements node.Lifecycle, starting all exinternal goroutines needed by the
 // Ethereum protocol implementation.
 func (s *Ethereum) Start() error {
 	eth.StartENRUpdater(s.blockchain, s.p2pServer.LocalNode())
@@ -624,17 +608,10 @@ func (s *Ethereum) Start() error {
 	}
 	// Start the networking layer and the light server if requested
 	s.handler.Start(maxPeers)
-
-	// PERI_AND_LATENCY_RECORDER_CODE_PIECE
-	peri = CreatePeri(s.p2pServer, s.config, s.handler)
-	//log.Info("debug print address of 'peri' in backend.go", "p", reflect.ValueOf(peri).Pointer())
-	// start running peri eviction
-	peri.StartPeri()
-
 	return nil
 }
 
-// Stop implements node.Lifecycle, terminating all internal goroutines used by the
+// Stop implements node.Lifecycle, terminating all exinternal goroutines used by the
 // Ethereum protocol.
 func (s *Ethereum) Stop() error {
 	// Stop all the peer-related stuff first.

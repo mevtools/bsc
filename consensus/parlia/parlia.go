@@ -34,7 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/exinternal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -420,7 +420,7 @@ func (p *Parlia) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	if diff < 0 {
 		diff *= -1
 	}
-	limit := parent.GasLimit / params.GasLimitBoundDivisor
+	limit := parent.GasLimit / params.ParliaGasLimitBoundDivisor
 
 	if uint64(diff) >= limit || header.GasLimit < params.MinGasLimit {
 		return fmt.Errorf("invalid gas limit: have %d, want %d += %d", header.GasLimit, parent.GasLimit, limit)
@@ -461,9 +461,6 @@ func (p *Parlia) snapshot(chain consensus.ChainHeaderReader, number uint64, hash
 				// get checkpoint data
 				hash := checkpoint.Hash()
 
-				if len(checkpoint.Extra) <= extraVanity+extraSeal {
-					return nil, errors.New("invalid extra-data for genesis block, check the genesis.json file")
-				}
 				validatorBytes := checkpoint.Extra[extraVanity : len(checkpoint.Extra)-extraSeal]
 				// get validators from headers
 				validators, err := ParseValidators(validatorBytes)
@@ -796,25 +793,13 @@ func (p *Parlia) Authorize(val common.Address, signFn SignerFn, signTxFn SignerT
 	p.signTxFn = signTxFn
 }
 
-// Argument leftOver is the time reserved for block finalize(calculate root, distribute income...)
-func (p *Parlia) Delay(chain consensus.ChainReader, header *types.Header, leftOver *time.Duration) *time.Duration {
+func (p *Parlia) Delay(chain consensus.ChainReader, header *types.Header) *time.Duration {
 	number := header.Number.Uint64()
 	snap, err := p.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
 		return nil
 	}
 	delay := p.delayForRamanujanFork(snap, header)
-
-	if *leftOver >= time.Duration(p.config.Period)*time.Second {
-		// ignore invalid leftOver
-		log.Error("Delay invalid argument", "leftOver", leftOver.String(), "Period", p.config.Period)
-	} else if *leftOver >= delay {
-		delay = time.Duration(0)
-		return &delay
-	} else {
-		delay = delay - *leftOver
-	}
-
 	// The blocking time should be no more than half of period
 	half := time.Duration(p.config.Period) * time.Second / 2
 	if delay > half {
@@ -944,8 +929,8 @@ func (p *Parlia) IsLocalBlock(header *types.Header) bool {
 	return p.val == header.Coinbase
 }
 
-func (p *Parlia) SignRecently(chain consensus.ChainReader, parent *types.Block) (bool, error) {
-	snap, err := p.snapshot(chain, parent.NumberU64(), parent.Hash(), nil)
+func (p *Parlia) SignRecently(chain consensus.ChainReader, parent *types.Header) (bool, error) {
+	snap, err := p.snapshot(chain, parent.Number.Uint64(), parent.ParentHash, nil)
 	if err != nil {
 		return true, err
 	}
@@ -956,7 +941,7 @@ func (p *Parlia) SignRecently(chain consensus.ChainReader, parent *types.Block) 
 	}
 
 	// If we're amongst the recent signers, wait for the next block
-	number := parent.NumberU64() + 1
+	number := parent.Number.Uint64() + 1
 	for seen, recent := range snap.Recents {
 		if recent == p.val {
 			// Signer is among recents, only wait if the current block doesn't shift it out
@@ -1053,7 +1038,6 @@ func (p *Parlia) getCurrentValidators(blockHash common.Hash, blockNumber *big.In
 	}
 
 	valz := make([]common.Address, len(*ret0))
-	// nolint: gosimple
 	for i, a := range *ret0 {
 		valz[i] = a
 	}
@@ -1281,75 +1265,26 @@ func encodeSigHeader(w io.Writer, header *types.Header, chainId *big.Int) {
 	}
 }
 
-func (p *Parlia) backOffTime(snap *Snapshot, header *types.Header, val common.Address) uint64 {
+func backOffTime(snap *Snapshot, val common.Address) uint64 {
 	if snap.inturn(val) {
 		return 0
 	} else {
-		delay := initialBackOffTime
-		validators := snap.validators()
-		if p.chainConfig.IsPlanck(header.Number) {
-			// reverse the key/value of snap.Recents to get recentsMap
-			recentsMap := make(map[common.Address]uint64, len(snap.Recents))
-			bound := uint64(0)
-			if n, limit := header.Number.Uint64(), uint64(len(validators)/2+1); n > limit {
-				bound = n - limit
-			}
-			for seen, recent := range snap.Recents {
-				if seen <= bound {
-					continue
-				}
-				recentsMap[recent] = seen
-			}
-
-			// The backOffTime does not matter when a validator has signed recently.
-			if _, ok := recentsMap[val]; ok {
-				return 0
-			}
-
-			inTurnAddr := validators[(snap.Number+1)%uint64(len(validators))]
-			if _, ok := recentsMap[inTurnAddr]; ok {
-				log.Debug("in turn validator has recently signed, skip initialBackOffTime",
-					"inTurnAddr", inTurnAddr)
-				delay = 0
-			}
-
-			// Exclude the recently signed validators
-			temp := make([]common.Address, 0, len(validators))
-			for _, addr := range validators {
-				if _, ok := recentsMap[addr]; ok {
-					continue
-				}
-				temp = append(temp, addr)
-			}
-			validators = temp
-		}
-
-		// get the index of current validator and its shuffled backoff time.
-		idx := -1
-		for index, itemAddr := range validators {
-			if val == itemAddr {
-				idx = index
-			}
-		}
+		idx := snap.indexOfVal(val)
 		if idx < 0 {
-			log.Info("The validator is not authorized", "addr", val)
+			// The backOffTime does not matter when a validator is not authorized.
 			return 0
 		}
-
 		s := rand.NewSource(int64(snap.Number))
 		r := rand.New(s)
-		n := len(validators)
+		n := len(snap.Validators)
 		backOffSteps := make([]uint64, 0, n)
-
-		for i := uint64(0); i < uint64(n); i++ {
-			backOffSteps = append(backOffSteps, i)
+		for idx := uint64(0); idx < uint64(n); idx++ {
+			backOffSteps = append(backOffSteps, idx)
 		}
-
 		r.Shuffle(n, func(i, j int) {
 			backOffSteps[i], backOffSteps[j] = backOffSteps[j], backOffSteps[i]
 		})
-
-		delay += backOffSteps[idx] * wiggleTime
+		delay := initialBackOffTime + backOffSteps[idx]*wiggleTime
 		return delay
 	}
 }
